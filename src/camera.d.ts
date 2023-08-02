@@ -51,7 +51,7 @@ export type CameraEvent =
   | CameraEventFolderAdded
   | CameraEventCaptureComplete;
 
-declare const camera: {
+export interface CameraModule {
   listAsync(): Promise<DetectedCamera[]>;
   openAsync(camera: DetectedCamera): Promise<void>;
   closeAsync(): Promise<boolean>;
@@ -66,6 +66,8 @@ declare const camera: {
   ): Promise<CameraEvent>;
 
   CameraEventType: CameraEventType;
-};
+}
+
+declare const camera: CameraModule;
 
 export default camera;

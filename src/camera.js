@@ -1,13 +1,7 @@
 const cameraAddon = require("bindings")("camera");
+const CameraEventType = require("./CameraEventType");
 
 module.exports = {
   ...cameraAddon,
-  CameraEventType: {
-    Unknown: 0,
-    Timeout: 1,
-    FileAdded: 2,
-    FolderAdded: 3,
-    CaptureComplete: 4,
-    FileChanged: 5,
-  },
+  CameraEventType,
 };
