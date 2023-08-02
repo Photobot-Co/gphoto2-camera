@@ -64,10 +64,11 @@ export interface CameraModule {
     cameraFilePath: CameraFilePath,
     targetFilePath: string,
   ): Promise<CameraEvent>;
-
-  CameraEventType: CameraEventType;
 }
 
-declare const camera: CameraModule;
+declare const camera: {
+  load: () => CameraModule;
+  CameraEventType: CameraEventType;
+};
 
 export default camera;
