@@ -57,7 +57,6 @@ export CXXFLAGS="$CXXFLAGS -pipe"
 
 # other flags
 export LANG=C
-DATE=$(date +%Y%m%d_%H%M%S )
 DCORES=$(( $(sysctl -n hw.ncpu) * 2 ))
 
 ###############################################################################
@@ -82,7 +81,7 @@ https://github.com/gphoto/libgphoto2/archive/libgphoto2-${LIBGPHOTO}-release.tar
 EOF
 
         # Downloading required files as compressed tar archives
-        wget --timeout 5 --tries 2 -c -i download.list > download.log 2>&1
+        wget --timeout 5 --tries 2 -c -i download.list
 
         # get downloaded file list
         GZFILES=$(ls -1 ./*.tar.gz ./*.tgz 2>/dev/null)
@@ -144,22 +143,13 @@ function compile_me_real()
 function compile_me()
 {
     echo "  - Building $1"
-    MYPWD=$PWD
-    mkdir -p "$MYPWD/logs"
-
-    # strip / is present and append _buildlog-$DATE.log
-    LOGFILE=$(echo "$1" | cut -d/ -f1)_buildlog-$DATE.log
-
-    compile_me_real "$1" >"logs/$LOGFILE" 2>&1
-
+    compile_me_real "$1"
     if [ $? -gt 0 ]
     then
         cd ..
         echo ""
         echo "An error occured"
-        echo "(Full Log at $MYPWD/logs/$LOGFILE):"
         echo ""
-        tail -20 "$MYPWD/logs/$LOGFILE"
         exit 1
     fi
 }
@@ -194,22 +184,13 @@ function compile_cmake_me_real()
 function compile_cmake_me()
 {
     echo "  - Building $1"
-    MYPWD=$PWD
-    mkdir -p "$MYPWD/logs"
-
-    # strip / is present and append _buildlog-$DATE.log
-    LOGFILE=$(echo "$1" | cut -d/ -f1)_buildlog-$DATE.log
-
-    compile_cmake_me_real "$1" >"logs/$LOGFILE" 2>&1
-
+    compile_cmake_me_real "$1"
     if [ $? -gt 0 ]
     then
         cd ..
         echo ""
         echo "An error occured"
-        echo "(Full Log at $MYPWD/logs/$LOGFILE):"
         echo ""
-        tail -20 "$MYPWD/logs/$LOGFILE"
         exit 1
     fi
 }
@@ -245,16 +226,12 @@ function cleanup_build()
            "${PREFIX}/lib/pkgconfig" \
            "${PREFIX}/lib/udev" \
            "${PREFIX}/lib/libgphoto2/print-camera-list"
-    find $PREFIX/lib/ -iname "*.a" | xargs rm -f
-    find $PREFIX/lib/ -iname "*.la" | xargs rm -f
 }
 
 function modify_install_name()
 {
     echo "+ Modifying the install name for the dylibs"
-
-    LOGFILE=install_name_prefix_tool-$DATE.log
-    ./installNamePrefixTool.sh "${PREFIX}/lib" "${PREFIX}/lib" "@loader_path" >"$DOWNLOAD/logs/$LOGFILE" 2>&1
+    ./installNamePrefixTool.sh "${PREFIX}/lib" "${PREFIX}/lib" "@loader_path"
 }
 
 function main()
