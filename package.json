@@ -10,7 +10,7 @@
     "test": "yarn lint",
     "install": "npm run buildVendorLibs && npm run build",
     "buildVendorLibs": "./buildVendorLibs.sh",
-    "build": "node-gyp rebuild && install_name_tool -change \"libgphoto2.6.dylib\" @rpath/libgphoto2.6.dylib build/Release/camera.node",
+    "build": "node-gyp rebuild && install_name_tool -change libgphoto2.6.dylib @rpath/libgphoto2.6.dylib build/Release/camera.node",
     "prepare": "husky install"
   },
   "dependencies": {
