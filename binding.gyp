@@ -4,16 +4,17 @@
       "target_name": "camera",
       "sources": ["src/camera.cc", "src/gphoto2.cc"],
       "include_dirs": [
-        "<!@(node -p \"require('node-addon-api').include_dir\")"
+        "<!@(node -p \"require('node-addon-api').include_dir\")",
+        "<!(pwd)/vendor/build/include",
+        "<!(pwd)/vendor/build/include/gphoto2"
       ],
       "dependencies": [
         "<!(node -p \"require('node-addon-api').gyp\")"
       ],
-      "link_settings": {
-        "libraries": [
-          '<!(pkg-config --libs libgphoto2)'
-        ]
-      },
+      "libraries": [
+        '-L<!(pwd)/vendor/build/lib',
+        '-lgphoto2'
+      ],
       "conditions": [
         ['OS=="mac"',
           {
@@ -24,8 +25,7 @@
               "GCC_ENABLE_CPP_EXCEPTIONS": "YES",
               "OTHER_CPLUSPLUSFLAGS" : [
                 "-std=c++11",
-                "-stdlib=libc++",
-                "<!(pkg-config --cflags libgphoto2)"
+                "-stdlib=libc++"
               ],
               "MACOSX_DEPLOYMENT_TARGET": "10.15",
               "GCC_SYMBOLS_PRIVATE_EXTERN": "YES"

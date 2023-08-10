@@ -1,5 +1,5 @@
 const path = require("path");
-const camera = require("./src/camera");
+const camera = require("./src/camera").load();
 
 async function main() {
   const cameras = await camera.listAsync();
