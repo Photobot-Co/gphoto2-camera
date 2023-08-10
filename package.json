@@ -8,9 +8,9 @@
   "scripts": {
     "lint": "eslint --ext .js,.ts src/",
     "test": "yarn lint",
-    "install": "npm run buildVendorLibs && npm run build",
-    "buildVendorLibs": "./buildVendorLibs.sh",
-    "build": "node-gyp rebuild && install_name_tool -change libgphoto2.6.dylib @rpath/libgphoto2.6.dylib build/Release/camera.node",
+    "install": "./checkAvailable.sh || ./downloadPrebuilt.sh || npm run build",
+    "build": "./buildVendorLibs.sh && node-gyp rebuild && install_name_tool -change libgphoto2.6.dylib @rpath/libgphoto2.6.dylib build/Release/camera.node",
+    "package": "./package.sh",
     "prepare": "husky install"
   },
   "dependencies": {

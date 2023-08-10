@@ -49,5 +49,5 @@ node_modules/
 
 # Build outputs
 build/
-
+package/
 vendor/
