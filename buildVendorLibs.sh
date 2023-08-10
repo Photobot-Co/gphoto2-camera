@@ -263,8 +263,8 @@ function main()
     echo "Based on https://github.com/lnxbil/GPhoto2.framework"
     echo ""
 
-    # check_wget
-    # download_files
+    check_wget
+    download_files
     build
     cleanup_build
     modify_install_name
