@@ -11,16 +11,18 @@
       "dependencies": [
         "<!(node -p \"require('node-addon-api').gyp\")"
       ],
-      "libraries": [
-        '-L<!(pwd)/vendor/build/lib',
-        '-lgphoto2'
-      ],
       "conditions": [
         ['OS=="mac"',
           {
             "cflags!": ["-Wno-deprecated-declarations"],
             "cflags_cc!": ["-Wno-deprecated-declarations"],
             "cflags+": ["-fvisibility=hidden"],
+            "link_settings": {
+              "library_dirs": ["<!(pwd)/vendor/build/lib"],
+              "libraries": [
+                "libgphoto2.6.dylib"
+              ]
+            },
             "xcode_settings": {
               "GCC_ENABLE_CPP_EXCEPTIONS": "YES",
               "OTHER_CPLUSPLUSFLAGS" : [
@@ -28,7 +30,11 @@
                 "-stdlib=libc++"
               ],
               "MACOSX_DEPLOYMENT_TARGET": "10.15",
-              "GCC_SYMBOLS_PRIVATE_EXTERN": "YES"
+              "GCC_SYMBOLS_PRIVATE_EXTERN": "YES",
+              "OTHER_LDFLAGS": [
+                # Ensure runtime linking is relative to sharp.node
+                "-Wl,-rpath,'@loader_path/../../vendor/build/lib'"
+              ]
             }
           }
         ]

@@ -216,21 +216,23 @@ function compile_cmake_me()
 
 function build()
 {
-    # Cleaning up
-    rm -rf "${PREFIX:?}/*"
+    (
+        # Cleaning up
+        rm -rf "${PREFIX:?}/*"
 
-    # switch to work directory
-    cd "$DOWNLOAD" || exit 
+        # switch to work directory
+        cd "$DOWNLOAD" || exit 
 
-    echo "+ Start building at $(date) with ${DCORES} threads"
+        echo "+ Start building at $(date) with ${DCORES} threads"
 
-    compile_me "libtool-${LIBTOOL}"
-    compile_me "libusb-${LIBUSB}"
-    compile_me "libusb-compat-0.1-${LIBUSBC}"
-    compile_cmake_me "libjpeg-turbo-${LIBJPEG}"
-    compile_me "libgphoto2-libgphoto2-${LIBGPHOTO}-release"
+        compile_me "libtool-${LIBTOOL}"
+        compile_me "libusb-${LIBUSB}"
+        compile_me "libusb-compat-0.1-${LIBUSBC}"
+        compile_cmake_me "libjpeg-turbo-${LIBJPEG}"
+        compile_me "libgphoto2-libgphoto2-${LIBGPHOTO}-release"
 
-    echo "+ Finished building at $(date)"
+        echo "+ Finished building at $(date)"
+    )
 }
 
 function cleanup_build()
@@ -252,7 +254,7 @@ function modify_install_name()
     echo "+ Modifying the install name for the dylibs"
 
     LOGFILE=install_name_prefix_tool-$DATE.log
-    ../install_name_prefix_tool.sh "${PREFIX}/lib" "${PREFIX}/lib" @rpath >"logs/$LOGFILE" 2>&1
+    ./installNamePrefixTool.sh "${PREFIX}/lib" "${PREFIX}/lib" "@loader_path" >"$DOWNLOAD/logs/$LOGFILE" 2>&1
 }
 
 function main()
@@ -261,8 +263,8 @@ function main()
     echo "Based on https://github.com/lnxbil/GPhoto2.framework"
     echo ""
 
-    check_wget
-    download_files
+    # check_wget
+    # download_files
     build
     cleanup_build
     modify_install_name
