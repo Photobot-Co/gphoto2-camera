@@ -29,7 +29,7 @@
                 "-std=c++11",
                 "-stdlib=libc++"
               ],
-              "MACOSX_DEPLOYMENT_TARGET": "10.15",
+              "MACOSX_DEPLOYMENT_TARGET": "11.0",
               "GCC_SYMBOLS_PRIVATE_EXTERN": "YES",
               "OTHER_LDFLAGS": [
                 # Ensure runtime linking is relative to sharp.node

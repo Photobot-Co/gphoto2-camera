@@ -2,7 +2,7 @@
 #
 # Downloads a prebuilt version of the library from Github releases and extracts it
 
-set -ex
+set -e
 
 if [ -n "${SKIP_PREBUILT+x}" ]
 then
@@ -12,7 +12,10 @@ fi
 
 VERSION=$(node -e "console.log(require('./package.json').version);")
 PLATFORM=$(node -e "console.log(require('os').platform());")
-ARCH=$(node -e "console.log(require('os').arch());")
+if [ -z "${ARCH:x}" ]
+then
+    ARCH=$(node -e "console.log(require('os').arch());")
+fi
 echo "Downloading prebuilt library for $VERSION on $PLATFORM $ARCH..."
 
 DOWNLOAD_URL="https://github.com/Photobot-Co/gphoto2-camera/releases/download/v$VERSION/photobot-gphoto2-camera-$VERSION-$PLATFORM-$ARCH.tar.gz"
@@ -28,4 +31,4 @@ rm package/prebuilt.tar.bz
 echo "Unpacked"
 
 echo "Checking if that worked"
-./checkAvailable.sh || exit 1
+./scripts/checkAvailable.sh || exit 1

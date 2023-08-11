@@ -22,7 +22,7 @@
 #
 
 # On fishy behaviour, please uncomment this line
-# set -e
+set -ex
 
 # Configuration
 DOWNLOAD="$(pwd)/vendor/download"
@@ -40,20 +40,35 @@ LIBGPHOTO=2_5_30
 ###############################################################################
 
 # Compiler flags
-export MACOSX_DEPLOYMENT_TARGET=10.15
-export CFLAGS="-I${PREFIX}/include -mmacosx-version-min=10.15"
+export MACOSX_DEPLOYMENT_TARGET=11.0
+export CFLAGS="-I${PREFIX}/include -mmacosx-version-min=11.0"
 export CPPFLAGS="-I${PREFIX}/include"
 export PKG_CONFIG_PATH=${PREFIX}/lib/pkgconfig
 export PATH=${PREFIX}/bin:/usr/local/bin/:/usr/bin:/bin:/usr/sbin:/sbin:${PATH}
 export LD_LIBRARY_PATH=${PREFIX}/lib
 export LDFLAGS="-L${PREFIX}/lib"
 
-export CC="gcc $ARCH"
-export CXX="g++ $ARCH"
+export CC="gcc"
+export CXX="g++"
 export CPP=/usr/bin/cpp
 export CXXCPP=/usr/bin/cpp
 export CFLAGS="$CFLAGS -pipe"
 export CXXFLAGS="$CXXFLAGS -pipe"
+
+if [ -n "${ARCH:x}" ]
+then
+    export OTHER_CFLAGS+=" -arch $ARCH"
+    export LDFLAGS+=" -arch $ARCH"
+    export CC+=" -arch $ARCH"
+    export CXX+=" -arch $ARCH"
+
+    if [ "$ARCH" = "arm64" ]; then
+        HOST="aarch64-apple-darwin"
+    else
+        HOST="$ARCH-apple-darwin"
+    fi
+fi
+
 
 # other flags
 export LANG=C
@@ -84,8 +99,8 @@ EOF
         wget --timeout 5 --tries 2 -c -i download.list
 
         # get downloaded file list
-        GZFILES=$(ls -1 ./*.tar.gz ./*.tgz 2>/dev/null)
-        BZFILES=$(ls -1 ./*.tar.bz2 ./*.tbz 2>/dev/null)
+        GZFILES=$(ls -1 ./*.tar.gz)
+        BZFILES=$(ls -1 ./*.tar.bz2)
 
         # uncompress each file
         for i in $GZFILES; do tar -zxf "$i"; done
@@ -106,7 +121,11 @@ function check_wget()
 function compile_me_real()
 {
     (
-        CONFIGURE="./configure --prefix=$PREFIX --enable-shared --disable-iconv --enable-osx-universal-binary --disable-nls "
+        CONFIGURE="./configure --prefix=$PREFIX --enable-shared --disable-iconv --disable-nls"
+        if [ -n "${HOST:x}" ]
+        then
+            CONFIGURE+=" --host $HOST"
+        fi
 
         cd "$1" || exit
         echo "--------------------------------------------------------------------------------"
@@ -133,8 +152,8 @@ function compile_me_real()
         make install -s
         [ $? -gt 0 ] && return 1
 
-        make install-lib -s
-        make install-headers -s
+        make install-lib -s || true
+        make install-headers -s || true
 
         echo "- Finishing"
     )
@@ -163,7 +182,7 @@ function compile_cmake_me_real()
         echo "--------------------------------------------------------------------------------"
 
         echo "Generating Makefiles"
-        cmake -G"Unix Makefiles" --install-prefix="$PREFIX" .
+        CMAKE_OSX_ARCHITECTURES=$ARCH cmake -G"Unix Makefiles" --install-prefix="$PREFIX" .
         [ $? -gt 0 ] && return 1
         
         echo "- Building"
@@ -174,8 +193,8 @@ function compile_cmake_me_real()
         make install -s
         [ $? -gt 0 ] && return 1
 
-        make install-lib -s
-        make install-headers -s
+        make install-lib -s || true
+        make install-headers -s || true
 
         echo "- Finishing"
     )
@@ -218,7 +237,7 @@ function build()
 
 function cleanup_build()
 {
-    echo "+ Cleaning up build directory"
+    echo "+ Cleaning up build and download directory"
 
     # Cleaning up unneccessary files
     rm -rf "${PREFIX}/{share,man,bin:?}" \
@@ -226,12 +245,13 @@ function cleanup_build()
            "${PREFIX}/lib/pkgconfig" \
            "${PREFIX}/lib/udev" \
            "${PREFIX}/lib/libgphoto2/print-camera-list"
+    rm -rf "$DOWNLOAD"
 }
 
 function modify_install_name()
 {
     echo "+ Modifying the install name for the dylibs"
-    ./installNamePrefixTool.sh "${PREFIX}/lib" "${PREFIX}/lib" "@loader_path"
+    ./scripts/installNamePrefixTool.sh "${PREFIX}/lib" "${PREFIX}/lib" "@loader_path"
 }
 
 function main()

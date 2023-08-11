@@ -2,6 +2,7 @@
 #
 # Checks if the library file already exists. If it does it will exit successfull.
 # Otherwise, it will exist with an error.
+set -e
 
 if [ -f "build/Release/camera.node" ]
 then

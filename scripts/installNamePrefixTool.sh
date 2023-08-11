@@ -21,6 +21,8 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 
 # USA
 
+set -e
+
 if [ $# -lt 3 ] 
 then 
 	echo "Usage: ${0##*/} <DIR|FILE> <OLD> <NEW>"
