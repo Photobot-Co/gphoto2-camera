@@ -10,9 +10,9 @@
     "test": "yarn lint",
     "install": "./scripts/checkAvailable.sh || ./scripts/downloadPrebuilt.sh || npm run build",
     "build": "./scripts/build.sh",
-    "prebuild": "npm run prebuild:darwin:x86_64 && npm run prebuild:darwin:arm64",
-    "prebuild:darwin:x86_64": "ARCH=x86_64 ./scripts/build.sh && ARCH=x86_64 ./scripts/package.sh",
-    "prebuild:darwin:arm64": "ARCH=arm64 ./scripts/build.sh && ARCH=arm64 ./scripts/package.sh",
+    "package": "npm run package:darwin:x86_64 && npm run package:darwin:arm64",
+    "package:darwin:x86_64": "ARCH=x86_64 ./scripts/build.sh && ARCH=x86_64 ./scripts/package.sh",
+    "package:darwin:arm64": "ARCH=arm64 ./scripts/build.sh && ARCH=arm64 ./scripts/package.sh",
     "prepare": "husky install"
   },
   "dependencies": {

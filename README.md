@@ -20,4 +20,4 @@ To build the library you need to have installed:
 
 You can then install the JS dependencies with `yarn install` before running `yarn build`. This will download the vendored C libraries, compile them and create the dynamic libraries needed to run this library.
 
-You can generate prebuilt versions of the library to upload to Github Releases by running `yarn prebuild`.
+You can generate prebuilt packaged versions of the library to upload to Github Releases by running `yarn package`.
