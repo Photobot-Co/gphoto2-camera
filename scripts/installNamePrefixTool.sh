@@ -25,7 +25,7 @@ set -e
 
 if [ $# -lt 3 ] 
 then 
-	echo "Usage: ${0##*/} <DIR|FILE> <OLD> <NEW>"
+	echo "Usage: ${0##*/} <DIR|FILE> <OLD> <NEW> <GLOBSUFFIX>"
 	echo "Changes the library prefix from OLD to NEW for each <DIR>/*.dylib or executable <FILE>."
 	exit 1
 fi
@@ -34,8 +34,15 @@ TARGETS=$1
 PREFIX=$2
 NEWPREFIX=$3
 
+if [ $# -eq 4 ] 
+then
+	GLOBSUFFIX=$4
+else
+	GLOBSUFFIX=dylib
+fi
+
 if [[ -d $TARGETS ]]; then
-	TARGETS=$TARGETS/*.dylib
+	TARGETS=$TARGETS/*.$GLOBSUFFIX
 elif [[ -f $TARGETS ]]; then
 	TARGETS="$TARGETS"
 else

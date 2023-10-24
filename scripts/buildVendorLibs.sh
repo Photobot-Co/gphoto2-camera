@@ -34,6 +34,8 @@ LIBUSB=1.0.26
 LIBUSBC=0.1.8
 LIBJPEG=3.0.0
 LIBGPHOTO=2_5_30
+LIBGPHOTO_DOT=2.5.30
+LIBGPHOTO_PORT_DOT=0.12.1
 
 ###############################################################################
 # Variables
@@ -252,6 +254,9 @@ function modify_install_name()
 {
     echo "+ Modifying the install name for the dylibs"
     ./scripts/installNamePrefixTool.sh "${PREFIX}/lib" "${PREFIX}/lib" "@loader_path"
+    echo "+ Modifying the install name for the so's"
+    ./scripts/installNamePrefixTool.sh "${PREFIX}/lib/libgphoto2/${LIBGPHOTO_DOT}" "${PREFIX}/lib" "@loader_path/../.." "so"
+    ./scripts/installNamePrefixTool.sh "${PREFIX}/lib/libgphoto2_port/${LIBGPHOTO_PORT_DOT}" "${PREFIX}/lib" "@loader_path/../.." "so"
 }
 
 function main()
