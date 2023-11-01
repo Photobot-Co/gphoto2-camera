@@ -16,9 +16,9 @@ const GP_ERROR_UNKNOWN_PORT = -5;
 const GP_FILE_TYPE_NORMAL = 1;
 
 /**
- * Load the library and return the interface and methods
+ * Do the actual loading of the library
  */
-export const load = async (): Promise<
+export const loadInternal = async (): Promise<
   CameraModule & { ffi: ReturnType<typeof getFfi> }
 > => {
   // Get the library. This will fail if the shared library cannot be found
@@ -438,6 +438,19 @@ export const load = async (): Promise<
     waitForEventAsync,
     getFileAsync,
   };
+};
+
+// Store a copy of the loaded library so it's a singleton
+let loadedLib: (CameraModule & { ffi: ReturnType<typeof getFfi> }) | undefined;
+
+/**
+ * Load the library and return the interface and methods
+ */
+export const load = async () => {
+  if (!loadedLib) {
+    loadedLib = await loadInternal();
+  }
+  return loadedLib;
 };
 
 export * from "./types";
