@@ -51,4 +51,6 @@ node_modules/
 build/
 dist/
 capt*.jpg
+
+# macOS
 .DS_Store

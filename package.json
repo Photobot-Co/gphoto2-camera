@@ -2,12 +2,15 @@
   "name": "@photobot/gphoto2-camera",
   "version": "2.0.0",
   "license": "MIT",
-  "main": "src/camera.js",
-  "types": "src/camera.d.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "author": "Matt Oakes <hello@mattoakes.net>",
   "scripts": {
+    "build": "tsc",
+    "types": "tsc --noEmit",
     "lint": "eslint --ext .js,.ts src/",
-    "test": "yarn lint",
+    "test": "yarn types && yarn lint",
+    "prepublish": "yarn build",
     "prepare": "husky install"
   },
   "dependencies": {
