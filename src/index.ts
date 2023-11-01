@@ -76,6 +76,11 @@ export const load = async (): Promise<
    * Opens a connection to a camera
    */
   const openAsync = async (cameraInfo: CameraInfo): Promise<void> => {
+    // If the camera is already open then just return as there's nothing to do
+    if (openCameraRefs.has(cameraInfo.port)) {
+      return;
+    }
+
     // Allocate the memory for a camera reference
     const cameraPointer = makeArrayPointer();
     await ffi.gp_camera_new(cameraPointer);
