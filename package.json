@@ -8,27 +8,24 @@
   "scripts": {
     "lint": "eslint --ext .js,.ts src/",
     "test": "yarn lint",
-    "install": "./scripts/checkAvailable.sh || ./scripts/downloadPrebuilt.sh || npm run build",
-    "build": "./scripts/build.sh",
-    "package": "npm run package:darwin:x86_64 && npm run package:darwin:arm64",
-    "package:darwin:x86_64": "ARCH=x86_64 ./scripts/build.sh && ARCH=x86_64 ./scripts/package.sh",
-    "package:darwin:arm64": "ARCH=arm64 ./scripts/build.sh && ARCH=arm64 ./scripts/package.sh",
     "prepare": "husky install"
   },
   "dependencies": {
-    "bindings": "^1.5.0",
-    "node-addon-api": "^7.0.0"
+    "koffi": "^2.6.6",
+    "util.promisify": "^1.1.2"
   },
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "^6.2.1",
-    "@typescript-eslint/parser": "^6.2.1",
-    "eslint": "^8.46.0",
-    "eslint-config-prettier": "^8.9.0",
-    "eslint-plugin-import": "^2.28.0",
-    "eslint-plugin-prettier": "^5.0.0",
+    "@types/util.promisify": "^1.0.6",
+    "@typescript-eslint/eslint-plugin": "^6.9.1",
+    "@typescript-eslint/parser": "^6.9.1",
+    "eslint": "^8.52.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-import": "^2.29.0",
+    "eslint-plugin-prettier": "^5.0.1",
     "husky": "^8.0.3",
-    "lint-staged": "^13.2.3",
-    "prettier": "^3.0.0",
-    "typescript": "^5.1.6"
+    "lint-staged": "^15.0.2",
+    "prettier": "^3.0.3",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.2.2"
   }
 }

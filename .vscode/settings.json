@@ -1,7 +1,14 @@
 {
     "cSpell.words": [
+        "autodetected",
         "dylib",
+        "fclose",
+        "fopen",
+        "fwrite",
         "gphoto",
+        "koffi",
+        "libc",
+        "libgphoto",
         "photobot"
     ]
 }

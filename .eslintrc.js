@@ -7,14 +7,20 @@ module.exports = {
   extends: [
     "eslint:recommended",
     "plugin:@typescript-eslint/recommended",
-    "plugin:import/recommended",
     "plugin:prettier/recommended",
   ],
   ignorePatterns: [
     "/lib/**/*", // Ignore built files.
   ],
   parser: "@typescript-eslint/parser",
-  plugins: ["@typescript-eslint", "import"],
+  plugins: ["@typescript-eslint"],
+  rules: {
+    // Typescript
+    "@typescript-eslint/no-unused-vars": [
+      "error",
+      { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+    ],
+  },
   overrides: [
     {
       files: "*.js",

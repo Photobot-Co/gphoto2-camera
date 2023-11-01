@@ -1,4 +1,16 @@
-export interface DetectedCamera {
+export enum WidgetType {
+  Window = 0,
+  Section = 1,
+  Text = 2,
+  Range = 3,
+  Toggle = 4,
+  Radio = 5,
+  Menu = 6,
+  Button = 7,
+  Date = 8,
+}
+
+export interface CameraInfo {
   name: string;
   port: string;
 }
@@ -39,8 +51,8 @@ export interface CameraEventCaptureComplete {
   type: CameraEventType.CaptureComplete;
 }
 
-export interface CameraEventFolderChanged {
-  type: CameraEventType.FolderChanged;
+export interface CameraEventFileChanged {
+  type: CameraEventType.FileChanged;
   path: CameraFilePath;
 }
 
@@ -49,26 +61,26 @@ export type CameraEvent =
   | CameraEventTimeout
   | CameraEventFileAdded
   | CameraEventFolderAdded
-  | CameraEventCaptureComplete;
+  | CameraEventCaptureComplete
+  | CameraEventFileChanged;
 
 export interface CameraModule {
-  listAsync(): Promise<DetectedCamera[]>;
-  openAsync(camera: DetectedCamera): Promise<void>;
-  closeAsync(): Promise<boolean>;
-  summaryAsync(): Promise<string>;
-  triggerCaptureAsync(): Promise<void>;
-  setConfigAsync(name: string, value: string): Promise<void>;
-  flushEventsAsync(milliseconds: number): Promise<number>;
-  waitForEventAsync(timeoutMilliseconds: number): Promise<CameraEvent>;
+  listAsync(): Promise<CameraInfo[]>;
+  openAsync(camera: CameraInfo): Promise<void>;
+  closeAsync(cameraInfo: CameraInfo): Promise<boolean>;
+  summaryAsync(cameraInfo: CameraInfo): Promise<string>;
+  triggerCaptureAsync(cameraInfo: CameraInfo): Promise<void>;
+  setConfigAsync(
+    cameraInfo: CameraInfo,
+    newConfig: { [key: string]: string },
+  ): Promise<void>;
+  waitForEventAsync(
+    cameraInfo: CameraInfo,
+    timeoutMilliseconds: number,
+  ): Promise<CameraEvent>;
   getFileAsync(
+    cameraInfo: CameraInfo,
     cameraFilePath: CameraFilePath,
     targetFilePath: string,
-  ): Promise<CameraEvent>;
+  ): Promise<void>;
 }
-
-declare const camera: {
-  load: () => CameraModule;
-  CameraEventType: CameraEventType;
-};
-
-export default camera;
