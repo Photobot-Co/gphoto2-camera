@@ -8,6 +8,8 @@ const POSSIBLE_LIBGPHOTO2_PATHS = [
   "/usr/local/lib/libgphoto2.dylib",
 ];
 
+const POSSIBLE_LIBC_PATHS = ["libc.dylib"];
+
 let ffi:
   | (ReturnType<typeof setupDefinitions> & ReturnType<typeof setupFunctions>)
   | undefined;
@@ -29,20 +31,37 @@ export const getFfi = () => {
       console.debug(`Loaded library from ${libPath}`);
       break;
     } catch (e) {
-      console.debug(`Unable to load library from ${libPath}. Trying next...`);
+      console.debug(
+        `Unable to load libgphoto2 from ${libPath}. Trying next...`,
+      );
     }
   }
-
   // Throw an error if it couldn't be loaded
   if (!libgphoto2) {
     throw new Error("Unable to load libgphoto2. Make sure it is installed");
+  }
+
+  // Load the shared libc library
+  let libc: koffi.IKoffiLib | undefined;
+  for (const libPath of POSSIBLE_LIBC_PATHS) {
+    try {
+      libc = koffi.load(libPath);
+      console.debug(`Loaded library from ${libPath}`);
+      break;
+    } catch (e) {
+      console.debug(`Unable to load libc from ${libPath}. Trying next...`);
+    }
+  }
+  // Throw an error if it couldn't be loaded
+  if (!libc) {
+    throw new Error("Unable to load libc. Make sure it is installed");
   }
 
   // Define the definitions first as they're used by the functions
   const definitions = setupDefinitions();
 
   // Setup the FFI functions that can be called
-  const functions = setupFunctions(libgphoto2);
+  const functions = setupFunctions(libgphoto2, libc);
 
   // Store and return everything
   ffi = { ...definitions, ...functions };

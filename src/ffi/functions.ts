@@ -1,7 +1,10 @@
 import koffi from "koffi";
 import promisify from "util.promisify";
 
-export const setupFunctions = (libgphoto2: koffi.IKoffiLib) => {
+export const setupFunctions = (
+  libgphoto2: koffi.IKoffiLib,
+  libc: koffi.IKoffiLib,
+) => {
   // Creates a function with the given def which returns a promise
   const createAsyncFunc = (lib: koffi.IKoffiLib, def: string) => {
     const func = lib.func(def);
@@ -346,27 +349,11 @@ export const setupFunctions = (libgphoto2: koffi.IKoffiLib) => {
   );
 
   /**
-   * Create new CameraFile object.
-   */
-  const gp_file_new = createErrorCheckingAsyncFunc(
-    libgphoto2,
-    "int gp_file_new(_Out_ CameraFile** file)",
-  );
-
-  /**
    * Create new CameraFile object frm a file description.
    */
   const gp_file_new_from_fd = createErrorCheckingAsyncFunc(
     libgphoto2,
     "int gp_file_new_from_fd(_Out_ CameraFile** file, int fd)",
-  );
-
-  /**
-   * Get a pointer to the data and the file's size.
-   */
-  const gp_file_get_data_and_size = createErrorCheckingAsyncFunc(
-    libgphoto2,
-    "int gp_file_get_data_and_size(CameraFile* file, _Out_ const char** data, _Out_ unsigned long* size)",
   );
 
   /**
@@ -376,6 +363,19 @@ export const setupFunctions = (libgphoto2: koffi.IKoffiLib) => {
     libgphoto2,
     "int gp_file_free(CameraFile* file)",
   );
+
+  /**
+   * Open a file descriptor
+   */
+  const open = createAsyncFunc(
+    libc,
+    "int open(const char *pathname, int flags, uint32 mode)",
+  );
+
+  /**
+   * Open a file descriptor
+   */
+  const fchmod = createAsyncFunc(libc, "int fchmod(int fd, uint32 mode)");
 
   return {
     gp_abilities_list_new,
@@ -417,9 +417,9 @@ export const setupFunctions = (libgphoto2: koffi.IKoffiLib) => {
     gp_widget_get_choice,
     gp_widget_set_value,
     gp_widget_free,
-    gp_file_new,
     gp_file_new_from_fd,
-    gp_file_get_data_and_size,
     gp_file_free,
+    open,
+    fchmod,
   };
 };

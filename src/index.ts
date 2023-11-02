@@ -393,12 +393,20 @@ export const loadInternal = async (): Promise<
     // Get the open camera, throwing an error if it's not open
     const camera = getOpenCamera(cameraInfo);
 
-    // Get the file description for the target file path
-    const { fd } = await fs.promises.open(
+    // Get the file description for the target file path to
+    const fileMode =
+      fs.constants.S_IWUSR |
+      fs.constants.S_IRUSR |
+      fs.constants.S_IRGRP |
+      fs.constants.S_IROTH; // 644
+    const fd = await ffi.open(
       targetFilePath,
-      fs.constants.O_CREAT | fs.constants.O_WRONLY,
-      0o644,
+      fs.constants.O_CREAT | fs.constants.O_TRUNC | fs.constants.O_WRONLY,
+      fileMode,
     );
+
+    // We need to set the file mode again as otherwise it gets set incorrectly when the file is opened
+    await ffi.fchmod(fd, fileMode);
 
     // Get the file information
     const filePointer = makeArrayPointer();
@@ -414,7 +422,6 @@ export const loadInternal = async (): Promise<
     );
 
     // Close the file references
-    // await ffi.fclose(fd);
     await ffi.gp_file_free(file);
 
     // Delete the image on the camera
