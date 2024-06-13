@@ -214,7 +214,6 @@ export const loadInternal = async (): Promise<
       const namePointer = makeArrayPointer();
       await ffi.gp_widget_get_name(widget, namePointer);
       const name = namePointer[0] as string;
-      console.log("name", name);
 
       // Get the widget value
       try {
@@ -222,7 +221,6 @@ export const loadInternal = async (): Promise<
         const typePointer = makeArrayPointer();
         await ffi.gp_widget_get_type(widget, typePointer);
         const type = typePointer[0] as WidgetType;
-        console.log("type", type);
         switch (type) {
           // Get the value as a string
           case WidgetType.Menu:
