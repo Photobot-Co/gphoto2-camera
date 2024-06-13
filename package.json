@@ -10,8 +10,8 @@
     "build": "tsc",
     "types": "tsc --noEmit",
     "lint": "eslint --ext .js,.ts src/",
-    "test": "yarn types && yarn lint",
-    "prepublish": "yarn build",
+    "test": "npm run types && npm run lint",
+    "prepublish": "npm run build",
     "prepare": "husky install"
   },
   "dependencies": {
