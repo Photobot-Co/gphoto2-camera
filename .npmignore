@@ -3,3 +3,4 @@
 src/
 test.ts
 *.config.js
+capt*.jpg
