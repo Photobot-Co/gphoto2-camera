@@ -194,6 +194,76 @@ export const loadInternal = async (): Promise<
   };
 
   /**
+   * Gets the config for the given camera
+   */
+  const getConfigAsync = async (
+    cameraInfo: CameraInfo,
+  ): Promise<{ [key: string]: string | number }> => {
+    // Get the camera, throwing an error if the camera isn't open
+    const camera = getOpenCamera(cameraInfo);
+
+    // Get the root config
+    const rootConfigWidgetPointer = makeArrayPointer();
+    await ffi.gp_camera_get_config(camera, rootConfigWidgetPointer, context);
+    const rootConfigWidget = rootConfigWidgetPointer[0];
+
+    // Get the config recursively from the root widget
+    const config: { [key: string]: string | number } = {};
+    const getConfig = async (widget: unknown, prefix = "") => {
+      // Get the name of the width
+      const namePointer = makeArrayPointer();
+      await ffi.gp_widget_get_name(widget, namePointer);
+      const name = namePointer[0] as string;
+      console.log("name", name);
+
+      // Get the widget value
+      try {
+        // Get the type of widget so we know what to do
+        const typePointer = makeArrayPointer();
+        await ffi.gp_widget_get_type(widget, typePointer);
+        const type = typePointer[0] as WidgetType;
+        console.log("type", type);
+        switch (type) {
+          // Get the value as a string
+          case WidgetType.Menu:
+          case WidgetType.Radio:
+          case WidgetType.Text: {
+            const valuePointer = makeArrayPointer();
+            await ffi.gp_widget_get_value_string(widget, valuePointer);
+            config[prefix + name] = valuePointer[0] as string;
+            break;
+          }
+          // Get the value as a number
+          case WidgetType.Range: {
+            const valuePointer = makeArrayPointer();
+            await ffi.gp_widget_get_value_float(widget, valuePointer);
+            config[prefix + name] = valuePointer[0] as number;
+            break;
+          }
+        }
+      } catch (e) {
+        console.warn(`Unable to get value for ${name}`, e);
+      }
+
+      // Get the config for any child widgets
+      const childCount = await ffi.gp_widget_count_children(widget);
+      for (let i = 0; i < childCount; i += 1) {
+        const childWidgetPointer = makeArrayPointer();
+        await ffi.gp_widget_get_child(widget, i, childWidgetPointer);
+        const childWidget = childWidgetPointer[0];
+        await getConfig(childWidget, prefix + name + "/");
+      }
+    };
+    await getConfig(rootConfigWidget);
+
+    // // Free the used memory and return
+    await ffi.gp_widget_free(rootConfigWidget);
+
+    // Return the config
+    return config;
+  };
+
+  /**
    * Sets the config value for the given camera
    */
   const setConfigAsync = async (
@@ -213,11 +283,15 @@ export const loadInternal = async (): Promise<
 
     // Go through each entry and set the value on the config
     for (const [name, value] of entires) {
+      const nameParts = name.split("/");
+      const lastNamePart =
+        nameParts.length > 0 ? nameParts[nameParts.length - 1] : name;
+
       // Try getting by name
       const widgetPointer = makeArrayPointer();
       let getConfigRet = await ffi.gp_widget_get_child_by_name(
         rootConfig,
-        name,
+        lastNamePart,
         widgetPointer,
       );
 
@@ -225,7 +299,7 @@ export const loadInternal = async (): Promise<
       if (getConfigRet < GP_OK) {
         getConfigRet = await ffi.gp_widget_get_child_by_label(
           rootConfig,
-          name,
+          lastNamePart,
           widgetPointer,
         );
       }
@@ -441,6 +515,7 @@ export const loadInternal = async (): Promise<
     closeAsync,
     summaryAsync,
     triggerCaptureAsync,
+    getConfigAsync,
     setConfigAsync,
     waitForEventAsync,
     getFileAsync,

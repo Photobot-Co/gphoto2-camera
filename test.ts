@@ -11,9 +11,11 @@ async function main() {
 
     console.log(await camera.summaryAsync(cameraInfo));
 
+    console.log(await camera.getConfigAsync(cameraInfo));
+
     await camera.setConfigAsync(cameraInfo, {
       capturemode: "Burst",
-      burstnumber: "3",
+      "main/capturesettings/burstnumber": "3",
     });
     // await camera.setConfigAsync(cameraInfo);
 
@@ -29,6 +31,8 @@ async function main() {
         await camera.getFileAsync(cameraInfo, cameraEvent.path, targetPath);
       }
     } while (cameraEvent.type !== 1);
+
+    console.log(await camera.getConfigAsync(cameraInfo));
 
     await camera.closeAsync(cameraInfo);
   }

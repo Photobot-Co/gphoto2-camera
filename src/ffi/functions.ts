@@ -269,6 +269,22 @@ export const setupFunctions = (
   );
 
   /**
+   * Counts the children of the CameraWidget.
+   */
+  const gp_widget_count_children = createErrorCheckingAsyncFunc(
+    libgphoto2,
+    "int gp_widget_count_children(CameraWidget* widget)",
+  );
+
+  /**
+   * Retrieves the child at child_number of the parent.
+   */
+  const gp_widget_get_child = createErrorCheckingAsyncFunc(
+    libgphoto2,
+    "int gp_widget_get_child(CameraWidget *widget, int child_number, _Out_ CameraWidget **child)",
+  );
+
+  /**
    * Retrieves the child with name of the widget.
    */
   const gp_widget_get_child_by_name = createErrorCheckingAsyncFunc(
@@ -282,6 +298,14 @@ export const setupFunctions = (
   const gp_widget_get_child_by_label = createErrorCheckingAsyncFunc(
     libgphoto2,
     "int gp_widget_get_child_by_label(CameraWidget* widget, const char* label, _Out_ CameraWidget** child)",
+  );
+
+  /**
+   * Retrieves the name of the CameraWidget
+   */
+  const gp_widget_get_name = createErrorCheckingAsyncFunc(
+    libgphoto2,
+    "int gp_widget_get_name(CameraWidget* widget, _Out_ const char** name)",
   );
 
   /**
@@ -330,6 +354,22 @@ export const setupFunctions = (
   const gp_widget_get_choice = createErrorCheckingAsyncFunc(
     libgphoto2,
     "int gp_widget_get_choice(CameraWidget* widget, int choice_number, _Out_ const char** choice)",
+  );
+
+  /**
+   * Gets the value of the CameraWidget as a string.
+   */
+  const gp_widget_get_value_string = createErrorCheckingAsyncFunc(
+    libgphoto2,
+    "int gp_widget_get_value(CameraWidget* widget, _Out_ const char** value)",
+  );
+
+  /**
+   * Gets the value of the CameraWidget as a float.
+   */
+  const gp_widget_get_value_float = createErrorCheckingAsyncFunc(
+    libgphoto2,
+    "int gp_widget_get_value(CameraWidget* widget, _Out_ float* value)",
   );
 
   /**
@@ -407,14 +447,19 @@ export const setupFunctions = (
     gp_camera_get_config,
     gp_camera_set_config,
     gp_camera_exit,
+    gp_widget_count_children,
+    gp_widget_get_child,
     gp_widget_get_child_by_name,
     gp_widget_get_child_by_label,
+    gp_widget_get_name,
     gp_widget_get_label,
     gp_widget_get_readonly,
     gp_widget_get_type,
     gp_widget_get_range,
     gp_widget_count_choices,
     gp_widget_get_choice,
+    gp_widget_get_value_string,
+    gp_widget_get_value_float,
     gp_widget_set_value,
     gp_widget_free,
     gp_file_new_from_fd,

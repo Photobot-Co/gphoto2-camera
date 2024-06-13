@@ -70,6 +70,9 @@ export interface CameraModule {
   closeAsync(cameraInfo: CameraInfo): Promise<boolean>;
   summaryAsync(cameraInfo: CameraInfo): Promise<string>;
   triggerCaptureAsync(cameraInfo: CameraInfo): Promise<void>;
+  getConfigAsync(
+    cameraInfo: CameraInfo,
+  ): Promise<{ [key: string]: string | number }>;
   setConfigAsync(
     cameraInfo: CameraInfo,
     newConfig: { [key: string]: string },
