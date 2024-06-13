@@ -266,7 +266,7 @@ export const loadInternal = async (): Promise<
    */
   const setConfigAsync = async (
     cameraInfo: CameraInfo,
-    newConfig: { [key: string]: string },
+    newConfig: { [key: string]: string | number },
   ): Promise<void> => {
     // Get the camera, throwing an error if the camera isn't open
     const camera = getOpenCamera(cameraInfo);
@@ -327,12 +327,19 @@ export const loadInternal = async (): Promise<
       switch (type) {
         // For text types: just set the value
         case WidgetType.Text:
+          if (typeof value !== "string") {
+            throw new Error(
+              `Must pass a string when setting ${name} with a text type`,
+            );
+          }
+
           await ffi.gp_widget_set_value(widget, value);
           break;
 
         // For range types: parse as a float, check the range is correct, and then set it
         case WidgetType.Range: {
-          const floatValue = parseFloat(value);
+          const floatValue =
+            typeof value === "string" ? parseFloat(value) : value;
           if (Number.isNaN(floatValue)) {
             throw new Error(
               `Must pass a float string when setting ${name} with a range type. Got ${value}`,
@@ -374,6 +381,12 @@ export const loadInternal = async (): Promise<
         // For menu or radio types: go through each choice to ensure the value is one of the options. If so, set it
         case WidgetType.Menu:
         case WidgetType.Radio: {
+          if (typeof value !== "string") {
+            throw new Error(
+              `Must pass a string when setting ${name} with a menu or radio type`,
+            );
+          }
+
           const choiceCount = await ffi.gp_widget_count_choices(widget);
 
           let wasSet = false;
