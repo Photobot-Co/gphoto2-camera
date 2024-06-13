@@ -75,7 +75,7 @@ export interface CameraModule {
   ): Promise<{ [key: string]: string | number }>;
   setConfigAsync(
     cameraInfo: CameraInfo,
-    newConfig: { [key: string]: string },
+    newConfig: { [key: string]: string | number },
   ): Promise<void>;
   waitForEventAsync(
     cameraInfo: CameraInfo,
