@@ -1,5 +1,5 @@
 import koffi from "koffi";
-import promisify from "util.promisify";
+import { promisify } from "util";
 
 export const setupFunctions = (
   libgphoto2: koffi.IKoffiLib,
