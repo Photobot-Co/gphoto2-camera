@@ -211,6 +211,11 @@ export const loadInternal = async (): Promise<
     // Get the config recursively from the root widget
     const config: { [key: string]: string | number } = {};
     const getConfig = async (widget: unknown, prefix = "") => {
+      // Get the name of the widget
+      const widgetNamePointer = makeArrayPointer();
+      await ffi.gp_widget_get_name(widget, widgetNamePointer);
+      const widgetName = widgetNamePointer[0] as string;
+
       // We need to decide if we should include the config item based on the options
       let shouldInclude = true;
       if (options.ignoreReadOnly) {
@@ -220,14 +225,8 @@ export const loadInternal = async (): Promise<
         shouldInclude = readOnlyPointer[0] !== 1;
       }
 
-      // If we've decided to include it, then get the name and value
+      // If we've decided to include it, then get the value
       if (shouldInclude) {
-        // Get the name of the width
-        const namePointer = makeArrayPointer();
-        await ffi.gp_widget_get_name(widget, namePointer);
-        const name = namePointer[0] as string;
-
-        // Get the widget value
         try {
           // Get the type of widget so we know what to do
           const typePointer = makeArrayPointer();
@@ -240,19 +239,19 @@ export const loadInternal = async (): Promise<
             case WidgetType.Text: {
               const valuePointer = makeArrayPointer();
               await ffi.gp_widget_get_value_string(widget, valuePointer);
-              config[prefix + name] = valuePointer[0] as string;
+              config[prefix + widgetName] = valuePointer[0] as string;
               break;
             }
             // Get the value as a number
             case WidgetType.Range: {
               const valuePointer = makeArrayPointer();
               await ffi.gp_widget_get_value_float(widget, valuePointer);
-              config[prefix + name] = valuePointer[0] as number;
+              config[prefix + widgetName] = valuePointer[0] as number;
               break;
             }
           }
         } catch (e) {
-          console.warn(`Unable to get value for ${name}`, e);
+          console.warn(`Unable to get value for ${widgetName}`, e);
         }
       }
 
@@ -262,7 +261,7 @@ export const loadInternal = async (): Promise<
         const childWidgetPointer = makeArrayPointer();
         await ffi.gp_widget_get_child(widget, i, childWidgetPointer);
         const childWidget = childWidgetPointer[0];
-        await getConfig(childWidget, prefix + name + "/");
+        await getConfig(childWidget, prefix + widgetName + "/");
       }
     };
     await getConfig(rootConfigWidget);
