@@ -198,6 +198,7 @@ export const loadInternal = async (): Promise<
    */
   const getConfigAsync = async (
     cameraInfo: CameraInfo,
+    options: { ignoreReadOnly?: boolean } = {},
   ): Promise<{ [key: string]: string | number }> => {
     // Get the camera, throwing an error if the camera isn't open
     const camera = getOpenCamera(cameraInfo);
@@ -210,37 +211,49 @@ export const loadInternal = async (): Promise<
     // Get the config recursively from the root widget
     const config: { [key: string]: string | number } = {};
     const getConfig = async (widget: unknown, prefix = "") => {
-      // Get the name of the width
-      const namePointer = makeArrayPointer();
-      await ffi.gp_widget_get_name(widget, namePointer);
-      const name = namePointer[0] as string;
+      // We need to decide if we should include the config item based on the options
+      let shouldInclude = true;
+      if (options.ignoreReadOnly) {
+        // Check if it is read only and mark it as don't include if it is
+        const readOnlyPointer = makeArrayPointer();
+        await ffi.gp_widget_get_readonly(widget, readOnlyPointer);
+        shouldInclude = readOnlyPointer[0] !== 1;
+      }
 
-      // Get the widget value
-      try {
-        // Get the type of widget so we know what to do
-        const typePointer = makeArrayPointer();
-        await ffi.gp_widget_get_type(widget, typePointer);
-        const type = typePointer[0] as WidgetType;
-        switch (type) {
-          // Get the value as a string
-          case WidgetType.Menu:
-          case WidgetType.Radio:
-          case WidgetType.Text: {
-            const valuePointer = makeArrayPointer();
-            await ffi.gp_widget_get_value_string(widget, valuePointer);
-            config[prefix + name] = valuePointer[0] as string;
-            break;
+      // If we've decided to include it, then get the name and value
+      if (shouldInclude) {
+        // Get the name of the width
+        const namePointer = makeArrayPointer();
+        await ffi.gp_widget_get_name(widget, namePointer);
+        const name = namePointer[0] as string;
+
+        // Get the widget value
+        try {
+          // Get the type of widget so we know what to do
+          const typePointer = makeArrayPointer();
+          await ffi.gp_widget_get_type(widget, typePointer);
+          const type = typePointer[0] as WidgetType;
+          switch (type) {
+            // Get the value as a string
+            case WidgetType.Menu:
+            case WidgetType.Radio:
+            case WidgetType.Text: {
+              const valuePointer = makeArrayPointer();
+              await ffi.gp_widget_get_value_string(widget, valuePointer);
+              config[prefix + name] = valuePointer[0] as string;
+              break;
+            }
+            // Get the value as a number
+            case WidgetType.Range: {
+              const valuePointer = makeArrayPointer();
+              await ffi.gp_widget_get_value_float(widget, valuePointer);
+              config[prefix + name] = valuePointer[0] as number;
+              break;
+            }
           }
-          // Get the value as a number
-          case WidgetType.Range: {
-            const valuePointer = makeArrayPointer();
-            await ffi.gp_widget_get_value_float(widget, valuePointer);
-            config[prefix + name] = valuePointer[0] as number;
-            break;
-          }
+        } catch (e) {
+          console.warn(`Unable to get value for ${name}`, e);
         }
-      } catch (e) {
-        console.warn(`Unable to get value for ${name}`, e);
       }
 
       // Get the config for any child widgets
@@ -267,7 +280,15 @@ export const loadInternal = async (): Promise<
   const setConfigAsync = async (
     cameraInfo: CameraInfo,
     newConfig: { [key: string]: string | number },
+    options: { ignoreErrors?: boolean } = {},
   ): Promise<void> => {
+    const throwOrWarn = (message: string) => {
+      if (options.ignoreErrors) {
+        console.warn(message);
+      } else {
+        throw new Error(message);
+      }
+    };
     // Get the camera, throwing an error if the camera isn't open
     const camera = getOpenCamera(cameraInfo);
 
@@ -280,7 +301,7 @@ export const loadInternal = async (): Promise<
     const entires = Object.entries(newConfig);
 
     // Go through each entry and set the value on the config
-    for (const [name, value] of entires) {
+    entriesLoop: for (const [name, value] of entires) {
       const nameParts = name.split("/");
       const lastNamePart =
         nameParts.length > 0 ? nameParts[nameParts.length - 1] : name;
@@ -305,7 +326,8 @@ export const loadInternal = async (): Promise<
       // If we weren't able to get by either, then throw an error
       if (getConfigRet < GP_OK) {
         await ffi.gp_widget_free(rootConfig);
-        throw new Error(`Unable to get config with name ${name}`);
+        throwOrWarn(`Unable to get config with name ${name}`);
+        continue entriesLoop;
       }
       const widget = widgetPointer[0];
 
@@ -314,9 +336,8 @@ export const loadInternal = async (): Promise<
       await ffi.gp_widget_get_readonly(widget, readOnlyPointer);
       const readOnly = readOnlyPointer[0];
       if (readOnly === 1) {
-        throw new Error(
-          `Unable to change the value of readonly config ${name}`,
-        );
+        throwOrWarn(`Unable to change the value of readonly config ${name}`);
+        continue entriesLoop;
       }
 
       // Get the type of widget so we know what to do
@@ -328,9 +349,10 @@ export const loadInternal = async (): Promise<
         // For text types: just set the value
         case WidgetType.Text:
           if (typeof value !== "string") {
-            throw new Error(
+            throwOrWarn(
               `Must pass a string when setting ${name} with a text type`,
             );
+            continue entriesLoop;
           }
 
           await ffi.gp_widget_set_value(widget, value);
@@ -341,9 +363,10 @@ export const loadInternal = async (): Promise<
           const floatValue =
             typeof value === "string" ? parseFloat(value) : value;
           if (Number.isNaN(floatValue)) {
-            throw new Error(
+            throwOrWarn(
               `Must pass a float string when setting ${name} with a range type. Got ${value}`,
             );
+            continue entriesLoop;
           }
 
           const maxPointer = makeArrayPointer();
@@ -359,9 +382,10 @@ export const loadInternal = async (): Promise<
           const min = minPointer[0] as number;
 
           if (floatValue > max || floatValue < min) {
-            throw new Error(
+            throwOrWarn(
               `Must pass a float string between ${min} and ${max} when setting ${name} with a range type. Got ${value}`,
             );
+            continue entriesLoop;
           }
 
           await ffi.gp_widget_set_value(
@@ -382,9 +406,10 @@ export const loadInternal = async (): Promise<
         case WidgetType.Menu:
         case WidgetType.Radio: {
           if (typeof value !== "string") {
-            throw new Error(
+            throwOrWarn(
               `Must pass a string when setting ${name} with a menu or radio type`,
             );
+            continue entriesLoop;
           }
 
           const choiceCount = await ffi.gp_widget_count_choices(widget);
@@ -407,22 +432,24 @@ export const loadInternal = async (): Promise<
           }
 
           if (!wasSet) {
-            throw new Error(
+            throwOrWarn(
               `Unable to set config ${name} to invalid choice ${value}`,
             );
+            continue entriesLoop;
           }
           break;
         }
 
         default:
-          throw new Error(`Unable to change config ${name} with type ${type}`);
+          throwOrWarn(`Unable to change config ${name} with type ${type}`);
+          continue entriesLoop;
       }
     }
 
     // Set the new config on the camera
     await ffi.gp_camera_set_config(camera, rootConfig, context);
 
-    // // Free the used memory and return
+    // Free the used memory and return
     await ffi.gp_widget_free(rootConfig);
   };
 

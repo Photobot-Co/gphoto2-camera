@@ -72,10 +72,12 @@ export interface CameraModule {
   triggerCaptureAsync(cameraInfo: CameraInfo): Promise<void>;
   getConfigAsync(
     cameraInfo: CameraInfo,
+    options?: { ignoreReadOnly?: boolean },
   ): Promise<{ [key: string]: string | number }>;
   setConfigAsync(
     cameraInfo: CameraInfo,
     newConfig: { [key: string]: string | number },
+    options?: { ignoreErrors?: boolean },
   ): Promise<void>;
   waitForEventAsync(
     cameraInfo: CameraInfo,
