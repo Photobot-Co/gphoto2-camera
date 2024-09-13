@@ -39,7 +39,7 @@ export const getFfi = () => {
       libgphoto2 = koffi.load(libPath);
       console.debug(`Loaded library from ${libPath}`);
       break;
-    } catch (e) {
+    } catch (_e) {
       console.debug(
         `Unable to load libgphoto2 from ${libPath}. Trying next...`,
       );
@@ -57,7 +57,7 @@ export const getFfi = () => {
       libc = koffi.load(libPath);
       console.debug(`Loaded library from ${libPath}`);
       break;
-    } catch (e) {
+    } catch (_e) {
       console.debug(`Unable to load libc from ${libPath}. Trying next...`);
     }
   }
