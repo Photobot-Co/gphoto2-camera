@@ -70,13 +70,16 @@ export interface CameraModule {
   closeAsync(cameraInfo: CameraInfo): Promise<boolean>;
   summaryAsync(cameraInfo: CameraInfo): Promise<string>;
   triggerCaptureAsync(cameraInfo: CameraInfo): Promise<void>;
+  triggerCapturePreviewAsync(
+    cameraInfo: CameraInfo,
+  ): Promise<{ data: Uint8Array; size: number; mimeType: string }>;
   getConfigAsync(
     cameraInfo: CameraInfo,
     options?: { ignoreReadOnly?: boolean },
-  ): Promise<{ [key: string]: string | number }>;
+  ): Promise<{ [key: string]: string | number | boolean }>;
   setConfigAsync(
     cameraInfo: CameraInfo,
-    newConfig: { [key: string]: string | number },
+    newConfig: { [key: string]: string | number | boolean },
     options?: { ignoreErrors?: boolean },
   ): Promise<void>;
   waitForEventAsync(

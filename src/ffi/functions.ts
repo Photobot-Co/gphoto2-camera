@@ -219,6 +219,14 @@ export const setupFunctions = (
   );
 
   /**
+   * Captures a preview that won't be stored on the camera but returned in supplied file.
+   */
+  const gp_camera_capture_preview = createErrorCheckingAsyncFunc(
+    libgphoto2,
+    "int gp_camera_capture_preview(Camera* camera, _Out_ CameraFile* file, GPContext* context)",
+  );
+
+  /**
    * Wait for an event from the camera.
    *
    * This function blocks and waits for an event to come from the camera. If timeout occurs before an event is received then *eventtype==GP_EVENT_TIMEOUT and eventdata is left unchanged. If an event is received then eventtype is set to the type of event, and eventdata is set to event specific data. See the CameraEventType enum to see which eventtype's match to which types of eventdata.
@@ -389,11 +397,35 @@ export const setupFunctions = (
   );
 
   /**
-   * Create new CameraFile object frm a file description.
+   * Create new CameraFile object.
+   */
+  const gp_file_new = createErrorCheckingAsyncFunc(
+    libgphoto2,
+    "int gp_file_new(_Out_ CameraFile** file)",
+  );
+
+  /**
+   * Create new CameraFile object from a file description.
    */
   const gp_file_new_from_fd = createErrorCheckingAsyncFunc(
     libgphoto2,
     "int gp_file_new_from_fd(_Out_ CameraFile** file, int fd)",
+  );
+
+  /**
+   * Get a pointer to the data and the file's size.
+   */
+  const gp_file_get_data_and_size = createErrorCheckingAsyncFunc(
+    libgphoto2,
+    "int gp_file_get_data_and_size(CameraFile* file, _Out_ const void** data, _Out_ unsigned int* size)",
+  );
+
+  /**
+   * Get the mime type of the file
+   */
+  const gp_file_get_mime_type = createErrorCheckingAsyncFunc(
+    libgphoto2,
+    "int gp_file_get_mime_type(CameraFile* file, _Out_ const char** mime_type)",
   );
 
   /**
@@ -441,6 +473,7 @@ export const setupFunctions = (
     gp_camera_init,
     gp_camera_get_summary,
     gp_camera_trigger_capture,
+    gp_camera_capture_preview,
     gp_camera_wait_for_event,
     gp_camera_file_get,
     gp_camera_file_delete,
@@ -462,7 +495,10 @@ export const setupFunctions = (
     gp_widget_get_value_float,
     gp_widget_set_value,
     gp_widget_free,
+    gp_file_new,
     gp_file_new_from_fd,
+    gp_file_get_data_and_size,
+    gp_file_get_mime_type,
     gp_file_free,
     open,
     fchmod,

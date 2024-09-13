@@ -156,11 +156,15 @@ export const loadInternal = async (): Promise<
       return false;
     }
 
-    // Exit the camera
-    await ffi.gp_camera_exit(camera, context);
-
     // Remove the camera from the open ref map
     openCameraRefs.delete(cameraInfo.port);
+
+    // Exit the camera
+    try {
+      await ffi.gp_camera_exit(camera, context);
+    } catch (e) {
+      console.warn("Error while exiting camera. Ignoring", e);
+    }
 
     // Return true to show we closed the camera
     return true;
@@ -194,12 +198,50 @@ export const loadInternal = async (): Promise<
   };
 
   /**
+   * Trigger a capture on the given camera
+   */
+  const triggerCapturePreviewAsync = async (
+    cameraInfo: CameraInfo,
+  ): Promise<{ data: Uint8Array; size: number; mimeType: string }> => {
+    // Get the open camera reference, throwing an error if not open
+    const camera = getOpenCamera(cameraInfo);
+
+    // Create the preview file object to capture into
+    const filePointer = makeArrayPointer();
+    await ffi.gp_file_new(filePointer);
+    const file = filePointer[0];
+
+    // Trigger a capture preview on the camera
+    await ffi.gp_camera_capture_preview(camera, file, context);
+
+    // Get the data from the file object
+    const dataPointer = makeArrayPointer();
+    const sizePointer = makeArrayPointer();
+    await ffi.gp_file_get_data_and_size(file, dataPointer, sizePointer);
+    const size = sizePointer[0] as number;
+    const data = koffi.decode(
+      dataPointer[0],
+      koffi.array("char", size, "Typed"),
+    );
+
+    // Get the mime type of the preview image
+    const mimeTypePointer = makeArrayPointer();
+    await ffi.gp_file_get_mime_type(file, mimeTypePointer);
+    const mimeType = mimeTypePointer[0] as string;
+
+    // Free the file
+    await ffi.gp_file_free(file);
+
+    return { data, size, mimeType };
+  };
+
+  /**
    * Gets the config for the given camera
    */
   const getConfigAsync = async (
     cameraInfo: CameraInfo,
     options: { ignoreReadOnly?: boolean } = {},
-  ): Promise<{ [key: string]: string | number }> => {
+  ): Promise<{ [key: string]: string | number | boolean }> => {
     // Get the camera, throwing an error if the camera isn't open
     const camera = getOpenCamera(cameraInfo);
 
@@ -209,7 +251,7 @@ export const loadInternal = async (): Promise<
     const rootConfigWidget = rootConfigWidgetPointer[0];
 
     // Get the config recursively from the root widget
-    const config: { [key: string]: string | number } = {};
+    const config: { [key: string]: string | number | boolean } = {};
     const getConfig = async (widget: unknown, prefix = "") => {
       // Get the name of the widget
       const widgetNamePointer = makeArrayPointer();
@@ -249,6 +291,12 @@ export const loadInternal = async (): Promise<
               config[prefix + widgetName] = valuePointer[0] as number;
               break;
             }
+            case WidgetType.Toggle: {
+              const valuePointer = makeArrayPointer();
+              await ffi.gp_widget_get_value_float(widget, valuePointer);
+              config[prefix + widgetName] = !!valuePointer[0];
+              break;
+            }
           }
         } catch (e) {
           console.warn(`Unable to get value for ${widgetName}`, e);
@@ -278,7 +326,7 @@ export const loadInternal = async (): Promise<
    */
   const setConfigAsync = async (
     cameraInfo: CameraInfo,
-    newConfig: { [key: string]: string | number },
+    newConfig: { [key: string]: string | number | boolean },
     options: { ignoreErrors?: boolean } = {},
   ): Promise<void> => {
     const throwOrWarn = (message: string) => {
@@ -360,7 +408,13 @@ export const loadInternal = async (): Promise<
         // For range types: parse as a float, check the range is correct, and then set it
         case WidgetType.Range: {
           const floatValue =
-            typeof value === "string" ? parseFloat(value) : value;
+            typeof value === "string"
+              ? parseFloat(value)
+              : typeof value === "boolean"
+                ? value === true
+                  ? 1
+                  : 0
+                : value;
           if (Number.isNaN(floatValue)) {
             throwOrWarn(
               `Must pass a float string when setting ${name} with a range type. Got ${value}`,
@@ -396,8 +450,9 @@ export const loadInternal = async (): Promise<
 
         // For toggle types: Check if we got a "true" string and set the number value based on that
         case WidgetType.Toggle: {
-          const intValue = value === "true" ? 1 : 0;
-          await ffi.gp_widget_set_value(widget, intValue);
+          const intValue =
+            value === true || value === "true" || value === 1 ? 1 : 0;
+          await ffi.gp_widget_set_value(widget, koffi.as([intValue], "int *"));
           break;
         }
 
@@ -552,6 +607,7 @@ export const loadInternal = async (): Promise<
     closeAsync,
     summaryAsync,
     triggerCaptureAsync,
+    triggerCapturePreviewAsync,
     getConfigAsync,
     setConfigAsync,
     waitForEventAsync,
