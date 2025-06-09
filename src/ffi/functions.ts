@@ -277,6 +277,14 @@ export const setupFunctions = (
   );
 
   /**
+   * Decrements the reference count of the camera.
+   */
+  const gp_camera_unref = createErrorCheckingAsyncFunc(
+    libgphoto2,
+    "int gp_camera_unref(Camera* camera)",
+  );
+
+  /**
    * Counts the children of the CameraWidget.
    */
   const gp_widget_count_children = createErrorCheckingAsyncFunc(
@@ -391,9 +399,9 @@ export const setupFunctions = (
   /**
    * Frees the CameraWidget memory.
    */
-  const gp_widget_free = createErrorCheckingAsyncFunc(
+  const gp_widget_unref = createErrorCheckingAsyncFunc(
     libgphoto2,
-    "int gp_widget_free(CameraWidget* widget)",
+    "int gp_widget_unref(CameraWidget* widget)",
   );
 
   /**
@@ -480,6 +488,7 @@ export const setupFunctions = (
     gp_camera_get_config,
     gp_camera_set_config,
     gp_camera_exit,
+    gp_camera_unref,
     gp_widget_count_children,
     gp_widget_get_child,
     gp_widget_get_child_by_name,
@@ -494,7 +503,7 @@ export const setupFunctions = (
     gp_widget_get_value_string,
     gp_widget_get_value_float,
     gp_widget_set_value,
-    gp_widget_free,
+    gp_widget_unref,
     gp_file_new,
     gp_file_new_from_fd,
     gp_file_get_data_and_size,

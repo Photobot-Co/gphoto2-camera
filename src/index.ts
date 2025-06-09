@@ -69,6 +69,7 @@ export const loadInternal = async (): Promise<
 
       cameras.push({ name, port });
     }
+    await ffi.gp_list_unref(list);
     return cameras;
   };
 
@@ -156,15 +157,20 @@ export const loadInternal = async (): Promise<
       return false;
     }
 
-    // Remove the camera from the open ref map
-    openCameraRefs.delete(cameraInfo.port);
-
     // Exit the camera
     try {
       await ffi.gp_camera_exit(camera, context);
     } catch (e) {
       console.warn("Error while exiting camera. Ignoring", e);
     }
+    try {
+      await ffi.gp_camera_unref(camera);
+    } catch (e) {
+      console.warn("Error while unrefing camera. Ignoring", e);
+    }
+
+    // Remove the camera from the open ref map
+    openCameraRefs.delete(cameraInfo.port);
 
     // Return true to show we closed the camera
     return true;
@@ -252,70 +258,72 @@ export const loadInternal = async (): Promise<
 
     // Get the config recursively from the root widget
     const config: { [key: string]: string | number | boolean } = {};
-    const getConfig = async (widget: unknown, prefix = "") => {
-      // Get the name of the widget
-      const widgetNamePointer = makeArrayPointer();
-      await ffi.gp_widget_get_name(widget, widgetNamePointer);
-      const widgetName = widgetNamePointer[0] as string;
+    try {
+      const getConfig = async (widget: unknown, prefix = "") => {
+        // Get the name of the widget
+        const widgetNamePointer = makeArrayPointer();
+        await ffi.gp_widget_get_name(widget, widgetNamePointer);
+        const widgetName = widgetNamePointer[0] as string;
 
-      // We need to decide if we should include the config item based on the options
-      let shouldInclude = true;
-      if (options.ignoreReadOnly) {
-        // Check if it is read only and mark it as don't include if it is
-        const readOnlyPointer = makeArrayPointer();
-        await ffi.gp_widget_get_readonly(widget, readOnlyPointer);
-        shouldInclude = readOnlyPointer[0] !== 1;
-      }
-
-      // If we've decided to include it, then get the value
-      if (shouldInclude) {
-        try {
-          // Get the type of widget so we know what to do
-          const typePointer = makeArrayPointer();
-          await ffi.gp_widget_get_type(widget, typePointer);
-          const type = typePointer[0] as WidgetType;
-          switch (type) {
-            // Get the value as a string
-            case WidgetType.Menu:
-            case WidgetType.Radio:
-            case WidgetType.Text: {
-              const valuePointer = makeArrayPointer();
-              await ffi.gp_widget_get_value_string(widget, valuePointer);
-              config[prefix + widgetName] = valuePointer[0] as string;
-              break;
-            }
-            // Get the value as a number
-            case WidgetType.Range: {
-              const valuePointer = makeArrayPointer();
-              await ffi.gp_widget_get_value_float(widget, valuePointer);
-              config[prefix + widgetName] = valuePointer[0] as number;
-              break;
-            }
-            case WidgetType.Toggle: {
-              const valuePointer = makeArrayPointer();
-              await ffi.gp_widget_get_value_float(widget, valuePointer);
-              config[prefix + widgetName] = !!valuePointer[0];
-              break;
-            }
-          }
-        } catch (e) {
-          console.warn(`Unable to get value for ${widgetName}`, e);
+        // We need to decide if we should include the config item based on the options
+        let shouldInclude = true;
+        if (options.ignoreReadOnly) {
+          // Check if it is read only and mark it as don't include if it is
+          const readOnlyPointer = makeArrayPointer();
+          await ffi.gp_widget_get_readonly(widget, readOnlyPointer);
+          shouldInclude = readOnlyPointer[0] !== 1;
         }
-      }
 
-      // Get the config for any child widgets
-      const childCount = await ffi.gp_widget_count_children(widget);
-      for (let i = 0; i < childCount; i += 1) {
-        const childWidgetPointer = makeArrayPointer();
-        await ffi.gp_widget_get_child(widget, i, childWidgetPointer);
-        const childWidget = childWidgetPointer[0];
-        await getConfig(childWidget, prefix + widgetName + "/");
-      }
-    };
-    await getConfig(rootConfigWidget);
+        // If we've decided to include it, then get the value
+        if (shouldInclude) {
+          try {
+            // Get the type of widget so we know what to do
+            const typePointer = makeArrayPointer();
+            await ffi.gp_widget_get_type(widget, typePointer);
+            const type = typePointer[0] as WidgetType;
+            switch (type) {
+              // Get the value as a string
+              case WidgetType.Menu:
+              case WidgetType.Radio:
+              case WidgetType.Text: {
+                const valuePointer = makeArrayPointer();
+                await ffi.gp_widget_get_value_string(widget, valuePointer);
+                config[prefix + widgetName] = valuePointer[0] as string;
+                break;
+              }
+              // Get the value as a number
+              case WidgetType.Range: {
+                const valuePointer = makeArrayPointer();
+                await ffi.gp_widget_get_value_float(widget, valuePointer);
+                config[prefix + widgetName] = valuePointer[0] as number;
+                break;
+              }
+              case WidgetType.Toggle: {
+                const valuePointer = makeArrayPointer();
+                await ffi.gp_widget_get_value_float(widget, valuePointer);
+                config[prefix + widgetName] = !!valuePointer[0];
+                break;
+              }
+            }
+          } catch (e) {
+            console.warn(`Unable to get value for ${widgetName}`, e);
+          }
+        }
 
-    // // Free the used memory and return
-    await ffi.gp_widget_free(rootConfigWidget);
+        // Get the config for any child widgets
+        const childCount = await ffi.gp_widget_count_children(widget);
+        for (let i = 0; i < childCount; i += 1) {
+          const childWidgetPointer = makeArrayPointer();
+          await ffi.gp_widget_get_child(widget, i, childWidgetPointer);
+          const childWidget = childWidgetPointer[0];
+          await getConfig(childWidget, prefix + widgetName + "/");
+        }
+      };
+      await getConfig(rootConfigWidget);
+    } finally {
+      // Free the used memory and return
+      await ffi.gp_widget_unref(rootConfigWidget);
+    }
 
     // Return the config
     return config;
@@ -344,167 +352,175 @@ export const loadInternal = async (): Promise<
     await ffi.gp_camera_get_config(camera, rootConfigPointer, context);
     const rootConfig = rootConfigPointer[0];
 
-    // Split the new config into entires
-    const entires = Object.entries(newConfig);
+    try {
+      // Split the new config into entires
+      const entires = Object.entries(newConfig);
 
-    // Go through each entry and set the value on the config
-    entriesLoop: for (const [name, value] of entires) {
-      const nameParts = name.split("/");
-      const lastNamePart =
-        nameParts.length > 0 ? nameParts[nameParts.length - 1] : name;
+      // Go through each entry and set the value on the config
+      entriesLoop: for (const [name, value] of entires) {
+        const nameParts = name.split("/");
+        const lastNamePart =
+          nameParts.length > 0 ? nameParts[nameParts.length - 1] : name;
 
-      // Try getting by name
-      const widgetPointer = makeArrayPointer();
-      let getConfigRet = await ffi.gp_widget_get_child_by_name(
-        rootConfig,
-        lastNamePart,
-        widgetPointer,
-      );
-
-      // If that didn't work then try getting by label
-      if (getConfigRet < GP_OK) {
-        getConfigRet = await ffi.gp_widget_get_child_by_label(
+        // Try getting by name
+        const widgetPointer = makeArrayPointer();
+        let getConfigRet = await ffi.gp_widget_get_child_by_name(
           rootConfig,
           lastNamePart,
           widgetPointer,
         );
-      }
 
-      // If we weren't able to get by either, then throw an error
-      if (getConfigRet < GP_OK) {
-        await ffi.gp_widget_free(rootConfig);
-        throwOrWarn(`Unable to get config with name ${name}`);
-        continue entriesLoop;
-      }
-      const widget = widgetPointer[0];
-
-      // Check if it is read only and return an error if it is
-      const readOnlyPointer = makeArrayPointer();
-      await ffi.gp_widget_get_readonly(widget, readOnlyPointer);
-      const readOnly = readOnlyPointer[0];
-      if (readOnly === 1) {
-        throwOrWarn(`Unable to change the value of readonly config ${name}`);
-        continue entriesLoop;
-      }
-
-      // Get the type of widget so we know what to do
-      const typePointer = makeArrayPointer();
-      await ffi.gp_widget_get_type(widget, typePointer);
-      const type = typePointer[0] as WidgetType;
-
-      switch (type) {
-        // For text types: just set the value
-        case WidgetType.Text:
-          if (typeof value !== "string") {
-            throwOrWarn(
-              `Must pass a string when setting ${name} with a text type`,
-            );
-            continue entriesLoop;
-          }
-
-          await ffi.gp_widget_set_value(widget, value);
-          break;
-
-        // For range types: parse as a float, check the range is correct, and then set it
-        case WidgetType.Range: {
-          const floatValue =
-            typeof value === "string"
-              ? parseFloat(value)
-              : typeof value === "boolean"
-                ? value === true
-                  ? 1
-                  : 0
-                : value;
-          if (Number.isNaN(floatValue)) {
-            throwOrWarn(
-              `Must pass a float string when setting ${name} with a range type. Got ${value}`,
-            );
-            continue entriesLoop;
-          }
-
-          const maxPointer = makeArrayPointer();
-          const minPointer = makeArrayPointer();
-          const incrementPointer = makeArrayPointer();
-          await ffi.gp_widget_get_range(
-            widget,
-            minPointer,
-            maxPointer,
-            incrementPointer,
+        // If that didn't work then try getting by label
+        if (getConfigRet < GP_OK) {
+          getConfigRet = await ffi.gp_widget_get_child_by_label(
+            rootConfig,
+            lastNamePart,
+            widgetPointer,
           );
-          const max = maxPointer[0] as number;
-          const min = minPointer[0] as number;
-
-          if (floatValue > max || floatValue < min) {
-            throwOrWarn(
-              `Must pass a float string between ${min} and ${max} when setting ${name} with a range type. Got ${value}`,
-            );
-            continue entriesLoop;
-          }
-
-          await ffi.gp_widget_set_value(
-            widget,
-            koffi.as([floatValue], "float *"),
-          );
-          break;
         }
 
-        // For toggle types: Check if we got a "true" string and set the number value based on that
-        case WidgetType.Toggle: {
-          const intValue =
-            value === true || value === "true" || value === 1 ? 1 : 0;
-          await ffi.gp_widget_set_value(widget, koffi.as([intValue], "int *"));
-          break;
-        }
-
-        // For menu or radio types: go through each choice to ensure the value is one of the options. If so, set it
-        case WidgetType.Menu:
-        case WidgetType.Radio: {
-          if (typeof value !== "string") {
-            throwOrWarn(
-              `Must pass a string when setting ${name} with a menu or radio type`,
-            );
-            continue entriesLoop;
-          }
-
-          const choiceCount = await ffi.gp_widget_count_choices(widget);
-
-          let wasSet = false;
-          for (
-            let choiceIndex = 0;
-            choiceIndex < choiceCount;
-            choiceIndex += 1
-          ) {
-            const choicePointer = makeArrayPointer();
-            await ffi.gp_widget_get_choice(widget, choiceIndex, choicePointer);
-            const choice = choicePointer[0];
-
-            if (choice === value) {
-              await ffi.gp_widget_set_value(widget, value);
-              wasSet = true;
-              break;
-            }
-          }
-
-          if (!wasSet) {
-            throwOrWarn(
-              `Unable to set config ${name} to invalid choice ${value}`,
-            );
-            continue entriesLoop;
-          }
-          break;
-        }
-
-        default:
-          throwOrWarn(`Unable to change config ${name} with type ${type}`);
+        // If we weren't able to get by either, then throw an error
+        if (getConfigRet < GP_OK) {
+          throwOrWarn(`Unable to get config with name ${name}`);
           continue entriesLoop;
+        }
+        const widget = widgetPointer[0];
+
+        // Check if it is read only and return an error if it is
+        const readOnlyPointer = makeArrayPointer();
+        await ffi.gp_widget_get_readonly(widget, readOnlyPointer);
+        const readOnly = readOnlyPointer[0];
+        if (readOnly === 1) {
+          throwOrWarn(`Unable to change the value of readonly config ${name}`);
+          continue entriesLoop;
+        }
+
+        // Get the type of widget so we know what to do
+        const typePointer = makeArrayPointer();
+        await ffi.gp_widget_get_type(widget, typePointer);
+        const type = typePointer[0] as WidgetType;
+
+        switch (type) {
+          // For text types: just set the value
+          case WidgetType.Text:
+            if (typeof value !== "string") {
+              throwOrWarn(
+                `Must pass a string when setting ${name} with a text type`,
+              );
+              continue entriesLoop;
+            }
+
+            await ffi.gp_widget_set_value(widget, value);
+            break;
+
+          // For range types: parse as a float, check the range is correct, and then set it
+          case WidgetType.Range: {
+            const floatValue =
+              typeof value === "string"
+                ? parseFloat(value)
+                : typeof value === "boolean"
+                  ? value === true
+                    ? 1
+                    : 0
+                  : value;
+            if (Number.isNaN(floatValue)) {
+              throwOrWarn(
+                `Must pass a float string when setting ${name} with a range type. Got ${value}`,
+              );
+              continue entriesLoop;
+            }
+
+            const maxPointer = makeArrayPointer();
+            const minPointer = makeArrayPointer();
+            const incrementPointer = makeArrayPointer();
+            await ffi.gp_widget_get_range(
+              widget,
+              minPointer,
+              maxPointer,
+              incrementPointer,
+            );
+            const max = maxPointer[0] as number;
+            const min = minPointer[0] as number;
+
+            if (floatValue > max || floatValue < min) {
+              throwOrWarn(
+                `Must pass a float string between ${min} and ${max} when setting ${name} with a range type. Got ${value}`,
+              );
+              continue entriesLoop;
+            }
+
+            await ffi.gp_widget_set_value(
+              widget,
+              koffi.as([floatValue], "float *"),
+            );
+            break;
+          }
+
+          // For toggle types: Check if we got a "true" string and set the number value based on that
+          case WidgetType.Toggle: {
+            const intValue =
+              value === true || value === "true" || value === 1 ? 1 : 0;
+            await ffi.gp_widget_set_value(
+              widget,
+              koffi.as([intValue], "int *"),
+            );
+            break;
+          }
+
+          // For menu or radio types: go through each choice to ensure the value is one of the options. If so, set it
+          case WidgetType.Menu:
+          case WidgetType.Radio: {
+            if (typeof value !== "string") {
+              throwOrWarn(
+                `Must pass a string when setting ${name} with a menu or radio type`,
+              );
+              continue entriesLoop;
+            }
+
+            const choiceCount = await ffi.gp_widget_count_choices(widget);
+
+            let wasSet = false;
+            for (
+              let choiceIndex = 0;
+              choiceIndex < choiceCount;
+              choiceIndex += 1
+            ) {
+              const choicePointer = makeArrayPointer();
+              await ffi.gp_widget_get_choice(
+                widget,
+                choiceIndex,
+                choicePointer,
+              );
+              const choice = choicePointer[0];
+
+              if (choice === value) {
+                await ffi.gp_widget_set_value(widget, value);
+                wasSet = true;
+                break;
+              }
+            }
+
+            if (!wasSet) {
+              throwOrWarn(
+                `Unable to set config ${name} to invalid choice ${value}`,
+              );
+              continue entriesLoop;
+            }
+            break;
+          }
+
+          default:
+            throwOrWarn(`Unable to change config ${name} with type ${type}`);
+            continue entriesLoop;
+        }
       }
+
+      // Set the new config on the camera
+      await ffi.gp_camera_set_config(camera, rootConfig, context);
+    } finally {
+      // Free the used memory and return
+      await ffi.gp_widget_unref(rootConfig);
     }
-
-    // Set the new config on the camera
-    await ffi.gp_camera_set_config(camera, rootConfig, context);
-
-    // Free the used memory and return
-    await ffi.gp_widget_free(rootConfig);
   };
 
   /**
