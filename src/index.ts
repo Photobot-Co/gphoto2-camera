@@ -8,6 +8,7 @@ import {
   CameraInfo,
   CameraEventType,
   WidgetType,
+  ConfigWidget,
 } from "./types";
 
 const GP_OK = 0;
@@ -31,7 +32,7 @@ export const loadInternal = async (): Promise<
   const openCameraRefs = new Map<string, unknown>();
 
   // Gets the open camera or throws an error if not open
-  const getOpenCamera = (cameraInfo: CameraInfo) => {
+  const _getOpenCamera = (cameraInfo: CameraInfo) => {
     // Get the open camera reference, throwing an error if not open
     const camera = openCameraRefs.get(cameraInfo.port);
     if (!camera) {
@@ -39,6 +40,54 @@ export const loadInternal = async (): Promise<
     }
 
     return camera;
+  };
+
+  /**
+   * Run a function for each config item from a camera
+   */
+  const _forEachCameraConfig = async (
+    camera: unknown,
+    handler: (args: {
+      prefix: string;
+      widgetName: string;
+      widgetType: WidgetType;
+      widget: unknown;
+    }) => void | Promise<void>,
+  ) => {
+    // Get the root config
+    const rootConfigWidgetPointer = makeArrayPointer();
+    await ffi.gp_camera_get_config(camera, rootConfigWidgetPointer, context);
+    const rootConfigWidget = rootConfigWidgetPointer[0];
+
+    // Call the handler recursively from the root widget
+    try {
+      const getConfig = async (widget: unknown, prefix = "") => {
+        // Get the name of the widget
+        const widgetNamePointer = makeArrayPointer();
+        await ffi.gp_widget_get_name(widget, widgetNamePointer);
+        const widgetName = widgetNamePointer[0] as string;
+
+        // We need to decide if we should include the config item based on the options
+        const typePointer = makeArrayPointer();
+        await ffi.gp_widget_get_type(widget, typePointer);
+        const widgetType = typePointer[0] as WidgetType;
+
+        await handler({ prefix, widgetName, widgetType, widget });
+
+        // Get the config for any child widgets
+        const childCount = await ffi.gp_widget_count_children(widget);
+        for (let i = 0; i < childCount; i += 1) {
+          const childWidgetPointer = makeArrayPointer();
+          await ffi.gp_widget_get_child(widget, i, childWidgetPointer);
+          const childWidget = childWidgetPointer[0];
+          await getConfig(childWidget, prefix + widgetName + "/");
+        }
+      };
+      await getConfig(rootConfigWidget);
+    } finally {
+      // Free the used memory for the root widget
+      await ffi.gp_widget_unref(rootConfigWidget);
+    }
   };
 
   /**
@@ -181,7 +230,7 @@ export const loadInternal = async (): Promise<
    */
   const summaryAsync = async (cameraInfo: CameraInfo): Promise<string> => {
     // Get the open camera reference, throwing an error if not open
-    const camera = getOpenCamera(cameraInfo);
+    const camera = _getOpenCamera(cameraInfo);
 
     // Get the summary for the open camera
     const cameraTextPointer = makeArrayPointer();
@@ -197,7 +246,7 @@ export const loadInternal = async (): Promise<
    */
   const triggerCaptureAsync = async (cameraInfo: CameraInfo): Promise<void> => {
     // Get the open camera reference, throwing an error if not open
-    const camera = getOpenCamera(cameraInfo);
+    const camera = _getOpenCamera(cameraInfo);
 
     // Trigger a capture on the camera
     await ffi.gp_camera_trigger_capture(camera, context);
@@ -210,7 +259,7 @@ export const loadInternal = async (): Promise<
     cameraInfo: CameraInfo,
   ): Promise<{ data: Uint8Array; size: number; mimeType: string }> => {
     // Get the open camera reference, throwing an error if not open
-    const camera = getOpenCamera(cameraInfo);
+    const camera = _getOpenCamera(cameraInfo);
 
     // Create the preview file object to capture into
     const filePointer = makeArrayPointer();
@@ -246,62 +295,60 @@ export const loadInternal = async (): Promise<
    */
   const getConfigAsync = async (
     cameraInfo: CameraInfo,
-    options: { ignoreReadOnly?: boolean } = {},
+    options: {
+      /**
+       * Supply a function to filter which config items will be returned. Return true to include the item, false to exclude it.
+       */
+      filter?: (name: string, type: WidgetType) => boolean;
+      /**
+       * Set to true to only include config which which are not read only
+       */
+      ignoreReadOnly?: boolean;
+    } = {},
   ): Promise<{ [key: string]: string | number | boolean }> => {
     // Get the camera, throwing an error if the camera isn't open
-    const camera = getOpenCamera(cameraInfo);
+    const camera = _getOpenCamera(cameraInfo);
 
-    // Get the root config
-    const rootConfigWidgetPointer = makeArrayPointer();
-    await ffi.gp_camera_get_config(camera, rootConfigWidgetPointer, context);
-    const rootConfigWidget = rootConfigWidgetPointer[0];
-
-    // Get the config recursively from the root widget
     const config: { [key: string]: string | number | boolean } = {};
-    try {
-      const getConfig = async (widget: unknown, prefix = "") => {
-        // Get the name of the widget
-        const widgetNamePointer = makeArrayPointer();
-        await ffi.gp_widget_get_name(widget, widgetNamePointer);
-        const widgetName = widgetNamePointer[0] as string;
-
+    await _forEachCameraConfig(
+      camera,
+      async ({ prefix, widgetName, widget, widgetType }) => {
         // We need to decide if we should include the config item based on the options
-        let shouldInclude = true;
-        if (options.ignoreReadOnly) {
+        const configKey = prefix + widgetName;
+        let shouldInclude = options.filter
+          ? options.filter(widgetName, widgetType)
+          : true;
+        if (shouldInclude && options.ignoreReadOnly) {
           // Check if it is read only and mark it as don't include if it is
           const readOnlyPointer = makeArrayPointer();
           await ffi.gp_widget_get_readonly(widget, readOnlyPointer);
           shouldInclude = readOnlyPointer[0] !== 1;
         }
 
-        // If we've decided to include it, then get the value
+        // If we've decided to include it, then get the value based on the type
         if (shouldInclude) {
           try {
-            // Get the type of widget so we know what to do
-            const typePointer = makeArrayPointer();
-            await ffi.gp_widget_get_type(widget, typePointer);
-            const type = typePointer[0] as WidgetType;
-            switch (type) {
+            switch (widgetType) {
               // Get the value as a string
               case WidgetType.Menu:
               case WidgetType.Radio:
               case WidgetType.Text: {
                 const valuePointer = makeArrayPointer();
                 await ffi.gp_widget_get_value_string(widget, valuePointer);
-                config[prefix + widgetName] = valuePointer[0] as string;
+                config[configKey] = valuePointer[0] as string;
                 break;
               }
               // Get the value as a number
               case WidgetType.Range: {
                 const valuePointer = makeArrayPointer();
                 await ffi.gp_widget_get_value_float(widget, valuePointer);
-                config[prefix + widgetName] = valuePointer[0] as number;
+                config[configKey] = valuePointer[0] as number;
                 break;
               }
               case WidgetType.Toggle: {
                 const valuePointer = makeArrayPointer();
                 await ffi.gp_widget_get_value_float(widget, valuePointer);
-                config[prefix + widgetName] = !!valuePointer[0];
+                config[configKey] = !!valuePointer[0];
                 break;
               }
             }
@@ -309,21 +356,129 @@ export const loadInternal = async (): Promise<
             console.warn(`Unable to get value for ${widgetName}`, e);
           }
         }
+      },
+    );
 
-        // Get the config for any child widgets
-        const childCount = await ffi.gp_widget_count_children(widget);
-        for (let i = 0; i < childCount; i += 1) {
-          const childWidgetPointer = makeArrayPointer();
-          await ffi.gp_widget_get_child(widget, i, childWidgetPointer);
-          const childWidget = childWidgetPointer[0];
-          await getConfig(childWidget, prefix + widgetName + "/");
+    // Return the config
+    return config;
+  };
+
+  /**
+   * Gets the config for the given camera
+   */
+  const getConfigWidgetsAsync = async (
+    cameraInfo: CameraInfo,
+    options: {
+      /**
+       * Supply a function to filter which config items will be returned. Return true to include the item, false to exclude it.
+       */
+      filter?: (name: string, type: WidgetType) => boolean;
+      /**
+       * Set to true to only include config which which are not read only
+       */
+      ignoreReadOnly?: boolean;
+    } = {},
+  ): Promise<{ [key: string]: ConfigWidget }> => {
+    // Get the camera, throwing an error if the camera isn't open
+    const camera = _getOpenCamera(cameraInfo);
+
+    const config: { [key: string]: ConfigWidget } = {};
+    await _forEachCameraConfig(
+      camera,
+      async ({ prefix, widgetName, widget, widgetType }) => {
+        // We need to decide if we should include the config item based on the options
+        const configKey = prefix + widgetName;
+        let shouldInclude = options.filter
+          ? options.filter(widgetName, widgetType)
+          : true;
+        if (shouldInclude && options.ignoreReadOnly) {
+          // Check if it is read only and mark it as don't include if it is
+          const readOnlyPointer = makeArrayPointer();
+          await ffi.gp_widget_get_readonly(widget, readOnlyPointer);
+          shouldInclude = readOnlyPointer[0] !== 1;
         }
-      };
-      await getConfig(rootConfigWidget);
-    } finally {
-      // Free the used memory and return
-      await ffi.gp_widget_unref(rootConfigWidget);
-    }
+
+        // If we've decided to include it, then get the value based on the type
+        if (shouldInclude) {
+          const labelPointer = makeArrayPointer();
+          await ffi.gp_widget_get_label(widget, labelPointer);
+          const widgetLabel = labelPointer[0] as string;
+
+          try {
+            switch (widgetType) {
+              // Get the value as a string
+              case WidgetType.Text: {
+                const valuePointer = makeArrayPointer();
+                await ffi.gp_widget_get_value_string(widget, valuePointer);
+                config[configKey] = {
+                  type: widgetType,
+                  label: widgetLabel,
+                  value: valuePointer[0] as string,
+                };
+                break;
+              }
+              // Get the value as a number
+              case WidgetType.Range: {
+                const valuePointer = makeArrayPointer();
+                await ffi.gp_widget_get_value_float(widget, valuePointer);
+                const minPointer = makeArrayPointer();
+                const maxPointer = makeArrayPointer();
+                const incrementPointer = makeArrayPointer();
+                await ffi.gp_widget_get_range(
+                  widget,
+                  minPointer,
+                  maxPointer,
+                  incrementPointer,
+                );
+                config[configKey] = {
+                  type: widgetType,
+                  label: widgetLabel,
+                  value: valuePointer[0] as number,
+                  min: minPointer[0] as number,
+                  max: maxPointer[0] as number,
+                  increment: incrementPointer[0] as number,
+                };
+                break;
+              }
+              // Get the value as a float and then convert to a boolean
+              case WidgetType.Toggle: {
+                const valuePointer = makeArrayPointer();
+                await ffi.gp_widget_get_value_float(widget, valuePointer);
+                config[configKey] = {
+                  type: widgetType,
+                  label: widgetLabel,
+                  value: !!valuePointer[0],
+                };
+                break;
+              }
+              case WidgetType.Menu:
+              case WidgetType.Radio: {
+                const valuePointer = makeArrayPointer();
+                await ffi.gp_widget_get_value_string(widget, valuePointer);
+
+                const choiceCount = await ffi.gp_widget_count_choices(widget);
+                const choices: string[] = [];
+                for (let i = 0; i < choiceCount; i++) {
+                  const choicePointer = makeArrayPointer();
+                  await ffi.gp_widget_get_choice(widget, i, choicePointer);
+                  choices.push(choicePointer[0] as string);
+                }
+
+                config[configKey] = {
+                  type: widgetType,
+                  label: widgetLabel,
+                  value: valuePointer[0] as string,
+                  choices,
+                };
+                break;
+              }
+            }
+          } catch (e) {
+            console.warn(`Unable to get value for ${widgetName}`, e);
+          }
+        }
+      },
+    );
 
     // Return the config
     return config;
@@ -345,7 +500,7 @@ export const loadInternal = async (): Promise<
       }
     };
     // Get the camera, throwing an error if the camera isn't open
-    const camera = getOpenCamera(cameraInfo);
+    const camera = _getOpenCamera(cameraInfo);
 
     // Get the root config
     const rootConfigPointer = makeArrayPointer();
@@ -531,7 +686,7 @@ export const loadInternal = async (): Promise<
     timeoutMilliseconds: number,
   ): Promise<CameraEvent> => {
     // Get the camera, throwing an error if it's not open
-    const camera = getOpenCamera(cameraInfo);
+    const camera = _getOpenCamera(cameraInfo);
 
     // Wait for the event, capturing the event type and the data associated with it
     const eventTypePointer = makeArrayPointer();
@@ -573,7 +728,7 @@ export const loadInternal = async (): Promise<
     targetFilePath: string,
   ): Promise<void> => {
     // Get the open camera, throwing an error if it's not open
-    const camera = getOpenCamera(cameraInfo);
+    const camera = _getOpenCamera(cameraInfo);
 
     // Get the file description for the target file path to
     const fileMode =
@@ -625,6 +780,7 @@ export const loadInternal = async (): Promise<
     triggerCaptureAsync,
     triggerCapturePreviewAsync,
     getConfigAsync,
+    getConfigWidgetsAsync,
     setConfigAsync,
     waitForEventAsync,
     getFileAsync,

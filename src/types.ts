@@ -75,8 +75,30 @@ export interface CameraModule {
   ): Promise<{ data: Uint8Array; size: number; mimeType: string }>;
   getConfigAsync(
     cameraInfo: CameraInfo,
-    options?: { ignoreReadOnly?: boolean },
+    options?: {
+      /**
+       * Supply a function to filter which config items will be returned. Return true to include the item, false to exclude it.
+       */
+      filter?: (name: string, type: WidgetType) => boolean;
+      /**
+       * Set to true to only include config which which are not read only
+       */
+      ignoreReadOnly?: boolean;
+    },
   ): Promise<{ [key: string]: string | number | boolean }>;
+  getConfigWidgetsAsync(
+    cameraInfo: CameraInfo,
+    options?: {
+      /**
+       * Supply a function to filter which config items will be returned. Return true to include the item, false to exclude it.
+       */
+      filter?: (name: string, type: WidgetType) => boolean;
+      /**
+       * Set to true to only include config which which are not read only
+       */
+      ignoreReadOnly?: boolean;
+    },
+  ): Promise<{ [key: string]: ConfigWidget }>;
   setConfigAsync(
     cameraInfo: CameraInfo,
     newConfig: { [key: string]: string | number | boolean },
@@ -92,3 +114,37 @@ export interface CameraModule {
     targetFilePath: string,
   ): Promise<void>;
 }
+
+export interface TextConfigWidget {
+  type: WidgetType.Text;
+  label: string;
+  value: string;
+}
+
+export interface RangeConfigWidget {
+  type: WidgetType.Range;
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  increment: number;
+}
+
+export interface ToggleConfigWidget {
+  type: WidgetType.Toggle;
+  label: string;
+  value: boolean;
+}
+
+export interface ChoiceConfigWidget {
+  type: WidgetType.Radio | WidgetType.Menu;
+  label: string;
+  value: string;
+  choices: string[];
+}
+
+export type ConfigWidget =
+  | TextConfigWidget
+  | RangeConfigWidget
+  | ToggleConfigWidget
+  | ChoiceConfigWidget;
