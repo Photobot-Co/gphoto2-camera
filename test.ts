@@ -38,7 +38,10 @@ async function main() {
 
       // If file added event, get the file
       if (cameraEvent.type === 2) {
-        const targetPath = path.join(__dirname, cameraEvent.path.name);
+        const targetPath = path.join(
+          import.meta.dirname,
+          cameraEvent.path.name,
+        );
         await camera.getFileAsync(cameraInfo, cameraEvent.path, targetPath);
       }
     } while (cameraEvent.type !== CameraEventType.Timeout);

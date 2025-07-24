@@ -1,3 +1,3 @@
-module.exports = {
-  "*.{js,ts,tsx}": ["yarn eslint --fix"],
+export default {
+  "*.{js,ts,tsx}": ["eslint --fix"],
 };
