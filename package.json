@@ -36,7 +36,7 @@
     "types": "tsc --noEmit",
     "lint": "eslint --ext .js,.ts src/",
     "test": "npm run types && npm run lint",
-    "prepublish": "npm run build",
+    "prepublishOnly": "npm run build",
     "prepare": "husky"
   },
   "dependencies": {
