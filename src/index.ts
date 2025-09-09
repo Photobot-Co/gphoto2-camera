@@ -9,7 +9,9 @@ import {
   CameraEventType,
   WidgetType,
   ConfigWidget,
+  GphotoLoadOptions,
 } from "./types";
+import { DEFAULT_LIBC_PATHS, DEFAULT_LIBGPHOTO2_PATHS } from "./constants";
 
 const GP_OK = 0;
 const GP_ERROR_UNKNOWN_PORT = -5;
@@ -19,11 +21,14 @@ const GP_FILE_TYPE_NORMAL = 1;
 /**
  * Do the actual loading of the library
  */
-export const loadInternal = async (): Promise<
-  CameraModule & { ffi: ReturnType<typeof getFfi> }
-> => {
+export const loadInternal = async (
+  options: GphotoLoadOptions,
+): Promise<CameraModule & { ffi: ReturnType<typeof getFfi> }> => {
   // Get the library. This will fail if the shared library cannot be found
-  const ffi = getFfi();
+  const ffi = getFfi({
+    libgphoto2Paths: options.libgphoto2Paths || DEFAULT_LIBGPHOTO2_PATHS,
+    libcPaths: options.libcPaths || DEFAULT_LIBC_PATHS,
+  });
 
   // Create the gphoto context to use
   const context = await ffi.gp_context_new();
@@ -793,11 +798,12 @@ let loadedLib: (CameraModule & { ffi: ReturnType<typeof getFfi> }) | undefined;
 /**
  * Load the library and return the interface and methods
  */
-export const load = async () => {
+export const load = async (options: GphotoLoadOptions = {}) => {
   if (!loadedLib) {
-    loadedLib = await loadInternal();
+    loadedLib = await loadInternal(options);
   }
   return loadedLib;
 };
 
+export * from "./constants";
 export * from "./types";

@@ -1,23 +1,7 @@
 import koffi from "koffi";
 import { setupDefinitions } from "./definitions";
 import { setupFunctions } from "./functions";
-
-const POSSIBLE_LIBGPHOTO2_PATHS = [
-  // Linux
-  "/usr/lib/aarch64-linux-gnu/libgphoto2.so.6",
-  "libgphoto2.so.6",
-  // macOS
-  "libgphoto2.dylib",
-  "/opt/homebrew/lib/libgphoto2.dylib",
-  "/usr/local/lib/libgphoto2.dylib",
-];
-
-const POSSIBLE_LIBC_PATHS = [
-  // Linux
-  "libc.so.6",
-  // macOS
-  "libc.dylib",
-];
+import { GphotoLoadOptions } from "../types";
 
 let ffi:
   | (ReturnType<typeof setupDefinitions> & ReturnType<typeof setupFunctions>)
@@ -26,15 +10,17 @@ let ffi:
 /**
  * Get the library, setting it up if needed
  */
-export const getFfi = () => {
+export const getFfi = (options: Required<GphotoLoadOptions>) => {
   // Return the lib right away if we've setup before
   if (ffi) {
     return ffi;
   }
 
+  const { libgphoto2Paths, libcPaths } = options;
+
   // Load the shared libgphoto2 library
   let libgphoto2: koffi.IKoffiLib | undefined;
-  for (const libPath of POSSIBLE_LIBGPHOTO2_PATHS) {
+  for (const libPath of libgphoto2Paths) {
     try {
       libgphoto2 = koffi.load(libPath);
       console.debug(`Loaded library from ${libPath}`);
@@ -52,7 +38,7 @@ export const getFfi = () => {
 
   // Load the shared libc library
   let libc: koffi.IKoffiLib | undefined;
-  for (const libPath of POSSIBLE_LIBC_PATHS) {
+  for (const libPath of libcPaths) {
     try {
       libc = koffi.load(libPath);
       console.debug(`Loaded library from ${libPath}`);

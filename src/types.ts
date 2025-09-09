@@ -1,3 +1,8 @@
+export interface GphotoLoadOptions {
+  libgphoto2Paths?: string[];
+  libcPaths?: string[];
+}
+
 export enum WidgetType {
   Window = 0,
   Section = 1,
