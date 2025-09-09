@@ -19,7 +19,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "start": "tsx test.ts",
+    "start": "tsx --force-node-api-uncaught-exceptions-policy=true -- test.ts",
     "start:preview": "tsx testPreview.ts",
     "build": "tsup src/index.ts --format cjs --dts",
     "types": "tsc --noEmit",

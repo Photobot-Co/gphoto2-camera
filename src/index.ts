@@ -10,6 +10,7 @@ import {
   WidgetType,
   ConfigWidget,
   GphotoLoadOptions,
+  LoggingLevel,
 } from "./types";
 import { DEFAULT_LIBC_PATHS, DEFAULT_LIBGPHOTO2_PATHS } from "./constants";
 
@@ -775,6 +776,25 @@ export const loadInternal = async (
     );
   };
 
+  const addLogFunc = async (
+    level: LoggingLevel,
+    loggingFunc: (level: LoggingLevel, domain: string, message: string) => void,
+  ): Promise<() => void> => {
+    const loggingCallback = ffi.koffi.register(
+      loggingFunc,
+      ffi.koffi.pointer(ffi.GPLogFunc),
+    );
+    const loggingId = await ffi.gp_log_add_func(
+      level,
+      loggingCallback,
+      undefined,
+    );
+
+    return () => {
+      ffi.gp_log_remove_func(loggingId);
+    };
+  };
+
   // Return the methods and raw ffi
   return {
     ffi,
@@ -789,6 +809,7 @@ export const loadInternal = async (
     setConfigAsync,
     waitForEventAsync,
     getFileAsync,
+    addLogFunc,
   };
 };
 

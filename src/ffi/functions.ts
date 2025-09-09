@@ -445,6 +445,22 @@ export const setupFunctions = (
   );
 
   /**
+   * Add a function to get logging information
+   */
+  const gp_log_add_func = createErrorCheckingAsyncFunc(
+    libgphoto2,
+    "int gp_log_add_func(int level, GPLogFunc* func, void* data)",
+  );
+
+  /**
+   * Add a function to get logging information
+   */
+  const gp_log_remove_func = createErrorCheckingAsyncFunc(
+    libgphoto2,
+    "int gp_log_remove_func(int id)",
+  );
+
+  /**
    * Open a file descriptor
    */
   const open = createAsyncFunc(
@@ -509,6 +525,8 @@ export const setupFunctions = (
     gp_file_get_data_and_size,
     gp_file_get_mime_type,
     gp_file_free,
+    gp_log_add_func,
+    gp_log_remove_func,
     open,
     fchmod,
   };

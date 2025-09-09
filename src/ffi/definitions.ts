@@ -184,6 +184,17 @@ export const setupDefinitions = () => {
     ref_count: "unsigned int",
   });
 
+  /**
+   * Logging function hook.
+   *
+   * This is the function frontends can use to receive logging information from the libgphoto2 framework. It
+   * is set using gp_log_add_func() and removed using gp_log_remove_func() and will then receive the logging
+   * messages of the level specified.
+   */
+  const GPLogFunc = koffi.proto(
+    "void GPLogFunc(int level, const char* domain, const char* str, void* data)",
+  );
+
   return {
     CameraList,
     Camera,
@@ -208,5 +219,6 @@ export const setupDefinitions = () => {
     GPContextStatusFunc,
     GPContextMessageFunc,
     GPContext,
+    GPLogFunc,
   };
 };

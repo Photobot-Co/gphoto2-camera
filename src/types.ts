@@ -69,6 +69,13 @@ export type CameraEvent =
   | CameraEventCaptureComplete
   | CameraEventFileChanged;
 
+export enum LoggingLevel {
+  Error = 0,
+  Verbose = 1,
+  Debug = 2,
+  Data = 3,
+}
+
 export interface CameraModule {
   listAsync(): Promise<CameraInfo[]>;
   openAsync(camera: CameraInfo): Promise<void>;
@@ -118,6 +125,10 @@ export interface CameraModule {
     cameraFilePath: CameraFilePath,
     targetFilePath: string,
   ): Promise<void>;
+  addLogFunc(
+    level: LoggingLevel,
+    loggingFn: (level: LoggingLevel, domain: string, message: string) => void,
+  ): Promise<() => void>;
 }
 
 export interface TextConfigWidget {

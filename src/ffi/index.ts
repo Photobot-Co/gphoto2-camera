@@ -4,7 +4,8 @@ import { setupFunctions } from "./functions";
 import { GphotoLoadOptions } from "../types";
 
 let ffi:
-  | (ReturnType<typeof setupDefinitions> & ReturnType<typeof setupFunctions>)
+  | (ReturnType<typeof setupDefinitions> &
+      ReturnType<typeof setupFunctions> & { koffi: typeof koffi })
   | undefined;
 
 /**
@@ -59,7 +60,7 @@ export const getFfi = (options: Required<GphotoLoadOptions>) => {
   const functions = setupFunctions(libgphoto2, libc);
 
   // Store and return everything
-  ffi = { ...definitions, ...functions };
+  ffi = { ...definitions, ...functions, koffi };
   return ffi;
 };
 

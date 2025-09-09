@@ -1,8 +1,11 @@
 import path from "path";
-import { CameraEvent, CameraEventType, load } from "./src";
+import { CameraEvent, CameraEventType, load, LoggingLevel } from "./src";
 
 async function main() {
   const camera = await load();
+  await camera.addLogFunc(LoggingLevel.Data, (level, domain, string) =>
+    console.log(level, domain, string),
+  );
   const cameras = await camera.listAsync();
   console.log("cameras", cameras);
   if (cameras.length > 0) {
